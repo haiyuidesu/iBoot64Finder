@@ -1,0 +1,23 @@
+iBoot64Finder
+
+> Find some iBoot functions in an iBoot64 (WIP).
+
+I. Requierements
+	1. macOS/Linux,
+	2. decrypted 64bit iBoot,
+	3. basic compilation tools.
+
+II. Usage
+	$ iBoot64Finder [--find] <iBoot> [--extra]
+	   -f, --find	find functions of a decrypted iBoot64.
+	   -e, --extra	try to find more iBoot functions.
+
+	$ iBoot64Finder --find iBoot.d421.RELEASE.dec --extra
+
+IV. Notes
+	> iOS 14 support will be added once the first non-beta will be released by Apple,
+	> I advise to use this shitty tool for the lastest versions (iOS 7.1.2 | 13.6 | ...),
+	> bof64 is buggy so I had to remove many functions... (like _strsep, _panic, +14 others),
+	> This project was made for programming skills and knowledges improvement with bootloaders,
+	> More functions will be added so this repo will be regulary updated! (PullRequest are welcome).
+	
