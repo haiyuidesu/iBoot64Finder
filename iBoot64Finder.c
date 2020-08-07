@@ -157,6 +157,11 @@ void find_image(void *ibot, int length) {
 void find_libc(void *ibot, int length) {
   uint64_t insn = 0, _insn = 0;
 
+  insn_set(insn,
+    0x2a3140a9, 0x2a3140a9, 0xb81a088b, 0x29195a8b, 0x2a0908cb);
+  locate_func(ibot, length, 
+    hex_set(2817, 0x4ae57a92, 0x2a0540b3), insn, "_memalign");
+
   insn_set(insn, 
     0x09fd46d3, 0x09fd46d3, 0x087c40d3, 0xc81240f9, 0xc81240f9);
   insn_set(_insn, 
@@ -195,12 +200,6 @@ void find_usb(void *ibot, int length) {
 
 void *find_funcs(void *ibot, int length, int extra) {
   uint64_t insn = 0, _insn = 0;
-
-  locate_func(ibot, length, 
-    hex_set(3406, 0xe20313aa, 
-      hex_set(5540, hex_set(4513, 0x29010032, 0x140500b9), 0x140500b9)),
-    hex_set(3406, 0xc06640b9, 
-      hex_set(5540, hex_set(4513, 0x29010032, 0x140500b9), 0x880090d2)), "_uart_init");
 
   find_image(ibot, length);
 
