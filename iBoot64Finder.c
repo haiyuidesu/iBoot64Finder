@@ -85,7 +85,7 @@ uint64_t locate_func(void *ibot, int length, uint32_t insn, uint32_t _insn, char
  
       beg = bof64(ibot, 0x0, loc - base);
  
-      printf("[%s]: %s = 0x%llx\n", __func__, func, beg);
+      printf("[%s]: %s = 0x%llx\n", __func__, func, base + beg);
  
       return beg;
     }
@@ -174,7 +174,7 @@ void find_libc(void *ibot, int length) {
 }
 
 // This one is kind of hard...
-void find_plateform(void *ibot, int length) {
+void find_platform(void *ibot, int length) {
   insn_set(insn,
     0x2011881a, 0x0011931a, 0x0011931a, 0x2915891a, 0x68021d32);
   insn_set(_insn,
@@ -183,8 +183,12 @@ void find_plateform(void *ibot, int length) {
 
   locate_func(ibot, length, 0x60024039, 0xe10313aa, "_platform_late_init");
 
+  locate_func(ibot, length, 
+    hex_set(2817, 0xe17f40b2, 0x01008012),
+    hex_set(5540, hex_set(3406, 0x680a0039, 0x68060039), 0x28008052), "_platform_init_display");
+
   insn_set(insn,
-    0x49c0a1f2, 0x49c0a1f2, 0x53c0a1f2, 0x7361a7f2, 0x680240b9);
+    0x49c0a1f2, 0x08fc60d3, 0x53c0a1f2, 0x5300c0f2, 0x680240b9);
   locate_func(ibot, length, 0x29011f32, insn, "_platform_get_nonce");
 }
 
@@ -234,7 +238,7 @@ void *find_funcs(void *ibot, int length, int extra) {
 
   find_image(ibot, length);
 
-  find_plateform(ibot, length);
+  find_platform(ibot, length);
 
   find_load(ibot, length);
 
