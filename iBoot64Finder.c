@@ -133,10 +133,8 @@ void find_image(void *ibot, int length) {
 
   locate_func(ibot, length,
     hex_set(3406, 0x0100e4d2, 0xf5030091), 0xf30302aa, "_image4_get_partial");
-
-  // iOS 11+ (bof64 is buggy here for iOS 10 and less so I removed the offsets).
-  if (version >= 4076)
-    locate_func(ibot, length, 0x8082c93c, 0xe00314aa, "_Img4DecodeGetPayload");
+  
+  locate_func(ibot, length, 0x8082c93c, 0xe00314aa, "_Img4DecodeGetPayload");
 
   locate_func(ibot, length,
     hex_set(3406, 0x08cc0129, 0x084c0129), 
@@ -175,21 +173,26 @@ void find_libc(void *ibot, int length) {
 
 // This one is kind of hard...
 void find_platform(void *ibot, int length) {
+  locate_func(ibot, length, 
+    hex_set(5540, 0x2879a8b8, 0x307ab0b8), 0xe00313aa, "_platform_quiesce_hardware");
+
   insn_set(insn,
     0x2011881a, 0x0011931a, 0x0011931a, 0x2915891a, 0x68021d32);
   insn_set(_insn,
     0x09011c32, 0x68021c32, 0x68021c32, 0x08011c12, 0x1315881a);
   locate_func(ibot, length, insn, _insn, "_platform_get_iboot_flags");
 
-  locate_func(ibot, length, 0x60024039, 0xe10313aa, "_platform_late_init");
-
   locate_func(ibot, length, 
     hex_set(2817, 0xe17f40b2, 0x01008012),
     hex_set(5540, hex_set(3406, 0x680a0039, 0x68060039), 0x28008052), "_platform_init_display");
 
+  locate_func(ibot, length, 0x60024039, 0xe10313aa, "_platform_late_init");
+
   insn_set(insn,
     0x49c0a1f2, 0x08fc60d3, 0x53c0a1f2, 0x5300c0f2, 0x680240b9);
   locate_func(ibot, length, 0x29011f32, insn, "_platform_get_nonce");
+
+  locate_func(ibot, length, 0x01190012, 0xe00313aa, "_platform_bootprep");
 }
 
 void find_load(void *ibot, int length) {

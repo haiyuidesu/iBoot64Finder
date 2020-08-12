@@ -15,9 +15,7 @@ II. Usage
 	$ iBoot64Finder --find iBoot.d421.RELEASE.dec --extra
 
 IV. Notes
-	> iOS 14 support will be added once the first non-beta will be released by Apple,
-	> I advise to use this shitty tool for the lastest versions (iOS 7.1.2 | 13.6 | ...),
-	> bof64 is buggy so I had to remove many functions... (like _strsep, _panic, +14 others),
+	> I highly advise to use this tool on the lastest versions (iOS 7.1.2 | 13.6 | ...),
 	> This project was made for programming skills and knowledges improvement with bootloaders,
 	> More functions will be added so this repo will be regulary updated! (PullRequest are welcome).
 	
