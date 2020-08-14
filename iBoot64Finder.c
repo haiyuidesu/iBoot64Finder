@@ -133,7 +133,7 @@ void find_image(void *ibot, int length) {
 
   locate_func(ibot, length,
     hex_set(3406, 0x0100e4d2, 0xf5030091), 0xf30302aa, "_image4_get_partial");
-  
+
   locate_func(ibot, length, 0x8082c93c, 0xe00314aa, "_Img4DecodeGetPayload");
 
   locate_func(ibot, length,
@@ -177,16 +177,16 @@ void find_platform(void *ibot, int length) {
     hex_set(5540, 0x2879a8b8, 0x307ab0b8), 0xe00313aa, "_platform_quiesce_hardware");
 
   insn_set(insn,
-    0x2011881a, 0x0011931a, 0x0011931a, 0x2915891a, 0x68021d32);
+    0x2011881a, 0x0011931a, 0x0011931a, 0x08011c12, 0x68021d32);
   insn_set(_insn,
-    0x09011c32, 0x68021c32, 0x68021c32, 0x08011c12, 0x1315881a);
+    0x09011c32, 0x68021c32, 0x68021c32, 0x087c44d3, 0x1315881a);
   locate_func(ibot, length, insn, _insn, "_platform_get_iboot_flags");
 
   locate_func(ibot, length, 
     hex_set(2817, 0xe17f40b2, 0x01008012),
     hex_set(5540, hex_set(3406, 0x680a0039, 0x68060039), 0x28008052), "_platform_init_display");
 
-  locate_func(ibot, length, 0x60024039, 0xe10313aa, "_platform_late_init");
+  locate_func(ibot, length, 0x60024039, 0xe10313aa, "_platform_early_init");
 
   insn_set(insn,
     0x49c0a1f2, 0x08fc60d3, 0x53c0a1f2, 0x5300c0f2, 0x680240b9);
@@ -214,6 +214,8 @@ void find_load(void *ibot, int length) {
   insn_set(_insn,
     0xfd030091, 0xfd430091, 0xe10313aa, 0x0040a072, 0x02008052);
   locate_func(ibot, length, insn, _insn, "_load_fs_firmware");
+
+  locate_func(ibot, length, 0x1f017871, 0x28040051, "_load_sepos"); // That is not the real name !
 }
 
 void find_usb(void *ibot, int length) {
@@ -232,6 +234,19 @@ void find_usb(void *ibot, int length) {
   locate_func(ibot, length, 0x020080d2, insn, "_usb_core_init");
 }
 
+void find_sep(void *ibot, int length) {
+  locate_func(ibot, length, 
+    hex_set(5540, 0x2902a072, 0x2802a072), 0xf30300aa, "_sep_client_set_antireplay_size"); // A11+
+
+  locate_func(ibot, length,
+    hex_set(5540, 0x1a02a072, 0x1902a072),
+    hex_set(5540, 0xe0031f32, 0xf91f8052), "_sep_client_get_random_data"); // A10+
+
+  locate_func(ibot, length, 
+    hex_set(4076, 0xe80c8052, 0xfadf8d52), 
+    hex_set(2817, 0xe0031f32, 0xf30300aa), "__sep_client_get_nonce");
+}
+
 void *find_funcs(void *ibot, int length, int extra) {
   insn_set(insn,
     0xe20313aa, 0xe20313aa, 0xe20313aa, 0x140500b9, hex_set(4513, 0x29010032, 0x140500b9));
@@ -241,9 +256,13 @@ void *find_funcs(void *ibot, int length, int extra) {
 
   find_image(ibot, length);
 
+  find_sep(ibot, length);
+
   find_platform(ibot, length);
 
   find_load(ibot, length);
+
+  find_usb(ibot, length);
 
   if (extra) {
     insn_set(insn,
@@ -251,9 +270,11 @@ void *find_funcs(void *ibot, int length, int extra) {
     locate_func(ibot, length, insn, 0x03008052, "_prepare_and_jump");
 
     locate_func(ibot, length, 0xe0039f5a, 0xe30316aa, "_aes_crypto_cmd");
-  }
 
-  find_usb(ibot, length);
+    locate_func(ibot, length, 0x00815fb8, 0xf30302aa, "_boot_object");
+
+    locate_func(ibot, length, 0x48210B9b, 0x0b098052, "_rtbuddy_register_endpoint"); // A11+ (iOS 12+)
+  }
 
   insn_set(insn, 0x480100f9, 0x880300f9, 0x0801138b, 0x080300f9, 0x0801138b);
   locate_func(ibot, length, 0x010080d2, insn, "_macho_load");
