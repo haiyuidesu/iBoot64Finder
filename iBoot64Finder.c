@@ -65,7 +65,7 @@ void *find_insn_before_ptr(void *ptr, uint32_t search, int size) {
 void *memdata(void *ibot, int length, uint64_t data, int data_size, void *last_ptr) {
   int loc = length - (ibot - last_ptr);
  
-  void *ptr = (void*)memmem(last_ptr + 0x4, loc - 0x4, (const char *)&data, data_size);
+  void *ptr = (void *)memmem(last_ptr + 0x4, loc - 0x4, (const char *)&data, data_size);
   
   if (ptr) return ptr;
  
@@ -173,6 +173,10 @@ void find_libc(void *ibot, int length) {
 
 // This one is kind of hard...
 void find_platform(void *ibot, int length) {
+  locate_func(ibot, length,
+    hex_set(5540, hex_set(4513, 0x005d1053, 0x94120011), 0x287b75b8),
+    hex_set(5540, hex_set(4513, 0x48c0a1f2, 0x605a36b8), 0xbf0a00f1), "_platform_update_device_tree");
+
   locate_func(ibot, length, 
     hex_set(5540, 0x2879a8b8, 0x307ab0b8), 0xe00313aa, "_platform_quiesce_hardware");
 
@@ -193,6 +197,12 @@ void find_platform(void *ibot, int length) {
   locate_func(ibot, length, 0x29011f32, insn, "_platform_get_nonce");
 
   locate_func(ibot, length, 0x01190012, 0xe00313aa, "_platform_bootprep");
+
+  locate_func(ibot, length, 0x13041f33, 0x2800002a, "_platform_disable_keys");
+
+  locate_func(ibot, length, 
+    hex_set(4513, hex_set(2817, 0x002d0c53, 0x007d1c53), 0x097d55d3), 
+    hex_set(4513, 0x48c0a1f2, 0x082540b9), "_platform_get_memory_size"); // iOS 9 to 12 : the function is below.
 }
 
 void find_load(void *ibot, int length) {
@@ -265,15 +275,17 @@ void *find_funcs(void *ibot, int length, int extra) {
   find_usb(ibot, length);
 
   if (extra) {
+    locate_func(ibot, length, 0x48210B9b, 0x0b098052, "_rtbuddy_register_endpoint"); // A11+ (iOS 12+)
+
+    locate_func(ibot, length, 0xff830091, 0x0800088b, "_alloc_kernel_mem"); // iOS 10+
+
     insn_set(insn,
-     0x60023fd6, 0xa0023fd6, 0x80023fd6, 0x680d8052, 0x80023fd6);
+      0x60023fd6, 0xa0023fd6, 0x80023fd6, 0x680d8052, 0x80023fd6);
     locate_func(ibot, length, insn, 0x03008052, "_prepare_and_jump");
 
     locate_func(ibot, length, 0xe0039f5a, 0xe30316aa, "_aes_crypto_cmd");
 
     locate_func(ibot, length, 0x00815fb8, 0xf30302aa, "_boot_object");
-
-    locate_func(ibot, length, 0x48210B9b, 0x0b098052, "_rtbuddy_register_endpoint"); // A11+ (iOS 12+)
   }
 
   insn_set(insn, 0x480100f9, 0x880300f9, 0x0801138b, 0x080300f9, 0x0801138b);
