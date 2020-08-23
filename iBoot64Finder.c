@@ -248,11 +248,13 @@ void find_der(void *ibot, int length) {
   locate_func(ibot, length, hex_set(4076, 0x090280f2, 0x0900e4f2), 0xf60301aa, "_DERParseSequence");
 
   locate_func(ibot, length,
-    0x680600f9, hex_set(5540, hex_set(2817, 0x09fe9ff2, 0x08fd41d3), 0x0900e2f2), "_DERDecodeSeqInit");
+    0x680600f9, hex_set(5540, hex_set(2261, 0x09fe9ff2, 0x08fd41d3), 0x0900e2f2), "_DERDecodeSeqInit");
 
   locate_func(ibot, length,
     hex_set(2817, 0x891240b9, 0x680200f9),
     hex_set(4513, 0x682640a9, 0x082440a9), "_DERDecodeSeqNext");
+
+  locate_func(ibot, length, 0x09fd60d3, 0xf30301aa, "_DERParseInteger");
 
   locate_func(ibot, length,
     hex_set(4076, hex_set(3406, 0x018a8672, 0xa1898672), 0x418a8652), 0xe30313aa, "_DERImg4DecodePayload");
@@ -299,13 +301,16 @@ void *find_funcs(void *ibot, int length, int extra) {
   if (extra) {
     locate_func(ibot, length, 0x48210b9b, 0x0b098052, "_rtbuddy_register_endpoint"); // A11+ (iOS 12+)
 
-    locate_func(ibot, length, 0xff830091, 0x0800088b, "_alloc_kernel_mem"); // iOS 10+
+    locate_func(ibot, length,
+      hex_set(2817, 0x090100b9, 0x080140f9),
+      hex_set(2817, 0x1f510071, 0xc81040f9), "_verify_signature_rsa"); // ?
 
+    locate_func(ibot, length, 0xff830091, 0x0800088b, "_alloc_kernel_mem"); // iOS 10+
     insn_set(insn,
       0x60023fd6, 0xa0023fd6, 0x80023fd6, 0x680d8052, 0x80023fd6);
     locate_func(ibot, length, insn, 0x03008052, "_prepare_and_jump");
 
-    locate_func(ibot, length, 0x63040091, 0x68004039, "_verify_pkcs1_sig");
+    locate_func(ibot, length, 0x63040091, 0x01014079, "_verify_pkcs1_sig");
 
     locate_func(ibot, length, 0xe0039f5a, 0xe30316aa, "_aes_crypto_cmd");
 
@@ -318,6 +323,10 @@ void *find_funcs(void *ibot, int length, int extra) {
   locate_func(ibot, length, 0xa11a40f9, 0xe00308aa, "_nvram_save");
 
   find_libc(ibot, length);
+
+  locate_func(ibot, length,
+    hex_set(4076, 0x20018052, 0x3f0d0071),
+    hex_set(4076, 0x08050011, 0x29050011), "_panic");
 
   return ibot;
 }
