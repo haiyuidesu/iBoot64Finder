@@ -145,6 +145,14 @@ void find_image(void *ibot, int length) {
   insn_set(_insn,
     0xea279f1a, 0x2b0840b9, 0x2b0840b9, 0xa80e40f9, 0xc91640f9);
   locate_func(ibot, length, insn, _insn, "_image4_process_superblock");
+
+  locate_func(ibot, length,
+    0xe30313aa, hex_set(2817, hex_set(2261, 0xe822c89a, 0x6823c99a), 0xe822c99a),
+    "_Img4DecodeEvaluateDictionaryProperties");
+
+  locate_func(ibot, length, 0x1F0500F1, 0x210843b2, "_Img4DecodeGetPropertyBoolean");
+
+  locate_func(ibot, length, 0x1f1100f1, 0x210843B2, "_Img4DecodeGetPropertyData");
 }
 
 void find_libc(void *ibot, int length) {
@@ -408,11 +416,6 @@ int main(int argc, char *argv[]) {
 
     if (version >= 6603) {
       printf("[%s]: iOS 14 is not supported yet, come back soon!\n", __func__);
-      return -1;
-    }
-
-    if (strcmp(ibot + 0x240, "ROMRELEASE") == 0) {
-      printf("[%s]: SecureROM is not supported, only iBoot bootloaders are.\n", __func__);
       return -1;
     }
 
