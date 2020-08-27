@@ -150,9 +150,9 @@ void find_image(void *ibot, int length) {
     0xe30313aa, hex_set(2817, hex_set(2261, 0xe822c89a, 0x6823c99a), 0xe822c99a),
     "_Img4DecodeEvaluateDictionaryProperties");
 
-  locate_func(ibot, length, 0x1F0500F1, 0x210843b2, "_Img4DecodeGetPropertyBoolean");
+  locate_func(ibot, length, 0x1f0500f1, 0x210843b2, "_Img4DecodeGetPropertyBoolean");
 
-  locate_func(ibot, length, 0x1f1100f1, 0x210843B2, "_Img4DecodeGetPropertyData");
+  locate_func(ibot, length, 0x1f1100f1, 0x210843b2, "_Img4DecodeGetPropertyData");
 }
 
 void find_libc(void *ibot, int length) {
@@ -160,6 +160,8 @@ void find_libc(void *ibot, int length) {
     0x2a3140a9, 0x2a3140a9, 0xb81a088b, 0x29195a8b, 0x2a0908cb);
   locate_func(ibot, length,
     hex_set(2817, 0x4ae57a92, 0x2a0540b3), insn, "_memalign");
+
+  locate_func(ibot, length, 0xbfae0071, 0xf60302aa, "_strtoull");
 
   insn_set(insn, 
     0x09fd46d3, 0x09fd46d3, 0x087c40d3, 0xc81240f9, 0xc81240f9);
@@ -310,10 +312,14 @@ void *find_funcs(void *ibot, int length, int extra) {
     locate_func(ibot, length, 0x48210b9b, 0x0b098052, "_rtbuddy_register_endpoint"); // A11+ (iOS 12+)
 
     locate_func(ibot, length,
+      0x1fc100f1, hex_set(3406, 0xa81240f9, 0x681240f9), "_verify_chain_signatures"); // iOS 9+
+
+    locate_func(ibot, length,
       hex_set(2817, 0x090100b9, 0x080140f9),
       hex_set(2817, 0x1f510071, 0xc81040f9), "_verify_signature_rsa"); // ?
 
     locate_func(ibot, length, 0xff830091, 0x0800088b, "_alloc_kernel_mem"); // iOS 10+
+    
     insn_set(insn,
       0x60023fd6, 0xa0023fd6, 0x80023fd6, 0x680d8052, 0x80023fd6);
     locate_func(ibot, length, insn, 0x03008052, "_prepare_and_jump");
