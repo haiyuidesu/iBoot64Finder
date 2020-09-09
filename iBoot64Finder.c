@@ -163,10 +163,18 @@ void find_libc(void *ibot, int length) {
 
   locate_func(ibot, length, 0xbfae0071, 0xf60302aa, 0, "_strtoull");
 
+  locate_func(ibot, length, hex_set(2817, 0x0a1d0012, 0x091d0012), 0x28004039, 1, "_strncmp");
+
+  locate_func(ibot, length, 0x0809C19a, 0x08008012, 1, "_calloc");
+
+  locate_func(ibot, length, 0x1f01216b, 0x08004039, 1, "_strchr");
+
+  if (version >= 2817) locate_func(ibot, length, 0x8C050091, 0x8D014039, 1, "_strsep");
+
   insn_set(insn, 
-    0x09fd46d3, 0x09fd46d3, 0x087c40d3, 0xc81240f9, 0xc81240f9);
+    0x09fd46d3, 0x09fd46d3, 0x6be57ad3, 0xc81240f9, 0xc81240f9);
   insn_set(_insn, 
-    0xf30300aa, 0xf30300aa, 0xf30300aa, 0xff7e00f1, 0xe00314aa);
+    0xf30300aa, 0xf30300aa, 0xab1240f9, 0xff7e00f1, 0xe00314aa);
   locate_func(ibot, length, insn, _insn, 0, "_malloc");
 
   /* [NOTE]: _bcopy is translated to _memcpy (or _memmove). */
