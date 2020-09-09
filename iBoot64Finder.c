@@ -72,7 +72,7 @@ void *memdata(void *ibot, int length, uint64_t data, int data_size, void *last_p
   return NULL;
 }
  
-uint64_t locate_func(void *ibot, int length, uint32_t insn, uint32_t _insn, char *func) {
+uint64_t locate_func(void *ibot, int length, uint32_t insn, uint32_t _insn, int x, char *func) {
   uint64_t beg = 0, loc = 0;
 
   void *first_occur = ibot;
@@ -83,9 +83,9 @@ uint64_t locate_func(void *ibot, int length, uint32_t insn, uint32_t _insn, char
     if (first_occur && find_insn_before_ptr(first_occur, bswap32(_insn), 0x200)) {
       loc = (uint64_t)(((uintptr_t)first_occur - (uintptr_t)ibot) + base);
  
-      beg = bof64(ibot, 0x0, loc - base);
+      if (x == 0) beg = base + bof64(ibot, 0x0, loc - base); // Functions with prologues
  
-      printf("[%s]: %s = 0x%llx\n", __func__, func, base + beg);
+      printf("[%s]: %s = 0x%llx\n", __func__, func, x ? loc : beg);
  
       return beg;
     }
@@ -107,186 +107,186 @@ else                      x = vers5;
 void find_image(void *ibot, int length) {
   locate_func(ibot, length, 
     hex_set(4076, hex_set(3406, 0x89e68c72, 0xc0008072), 0x6000a872), 
-    hex_set(4076, hex_set(3406, 0x080c40b9, 0x6000a852), 0xc0008052), "_image_load");
+    hex_set(4076, hex_set(3406, 0x080c40b9, 0x6000a852), 0xc0008052), 0, "_image_load");
 
   locate_func(ibot, length, 
-    0x09090253, hex_set(2817, 0x087c40d3, 0xe80300aa), "_image4_load");
+    0x09090253, hex_set(2817, 0x087c40d3, 0xe80300aa), 0, "_image4_load");
 
   locate_func(ibot, length, 
-    0x6082813c, hex_set(2817, 0x61220591, 0xc0c20091), "_Img4DecodeInit");
+    0x6082813c, hex_set(2817, 0x61220591, 0xc0c20091), 0, "_Img4DecodeInit");
 
   locate_func(ibot, length,
     hex_set(4013, hex_set(3406, 0xe20318aa, 0x48af8d72), 0x2410487a), 
-    hex_set(4013, hex_set(3406, 0x810240f9, 0x010b40b9), 0x48af8d52), "_image_load_file");
+    hex_set(4013, hex_set(3406, 0x810240f9, 0x010b40b9), 0x48af8d52), 0, "_image_load_file");
 
   insn_set(insn, 
     0x2a5d1053, 0x0a5d1053, 0x0a5d1053, 0x2b5d1053, 0x2b5d1053);
-  locate_func(ibot, length, 0xe00313aa, insn, "_image4_dump_list");
+  locate_func(ibot, length, 0xe00313aa, insn, 0, "_image4_dump_list");
 
   locate_func(ibot, length, 
     hex_set(5540, 0x1f000871, 0xa81640f9), 
-    hex_set(5540, 0x00013fd6, 0x02408052), "_image_search_bdev");
+    hex_set(5540, 0x00013fd6, 0x02408052), 0, "_image_search_bdev");
 
   locate_func(ibot, length, 
     hex_set(3406, 0xe20307aa, 0xf40307aa), 
-    hex_set(3406, 0xf30306aa, 0xfd030191), "_image_load_memory");
+    hex_set(3406, 0xf30306aa, 0xfd030191), 0, "_image_load_memory");
 
   locate_func(ibot, length,
-    hex_set(3406, 0x0100e4d2, 0xf5030091), 0xf30302aa, "_image4_get_partial");
+    hex_set(3406, 0x0100e4d2, 0xf5030091), 0xf30302aa, 0, "_image4_get_partial");
 
-  locate_func(ibot, length, 0x8082c93c, 0xe00314aa, "_Img4DecodeGetPayload");
+  locate_func(ibot, length, 0x8082c93c, 0xe00314aa, 0, "_Img4DecodeGetPayload");
 
   locate_func(ibot, length,
     hex_set(3406, 0x08cc0129, 0x084c0129), 
-    hex_set(4076, 0x48af8d72, 0xa8aca972), "_image_create_from_memory");
+    hex_set(4076, 0x48af8d72, 0xa8aca972), 0, "_image_create_from_memory");
 
   insn_set(insn,
     0x0841298b, 0x6931899a, 0x6931899a, 0xc8038052, 0x20013fd6);
   insn_set(_insn,
     0xea279f1a, 0x2b0840b9, 0x2b0840b9, 0xa80e40f9, 0xc91640f9);
-  locate_func(ibot, length, insn, _insn, "_image4_process_superblock");
+  locate_func(ibot, length, insn, _insn, 0, "_image4_process_superblock");
 
   locate_func(ibot, length,
-    0xe30313aa, hex_set(2817, hex_set(2261, 0xe822c89a, 0x6823c99a), 0xe822c99a),
+    0xe30313aa, hex_set(2817, hex_set(2261, 0xe822c89a, 0x6823c99a), 0xe822c99a), 0,
     "_Img4DecodeEvaluateDictionaryProperties");
 
-  locate_func(ibot, length, 0x1f0500f1, 0x210843b2, "_Img4DecodeGetPropertyBoolean");
+  locate_func(ibot, length, 0x1f0500f1, 0x210843b2, 0, "_Img4DecodeGetPropertyBoolean");
 
-  locate_func(ibot, length, 0x1f1100f1, 0x210843b2, "_Img4DecodeGetPropertyData");
+  locate_func(ibot, length, 0x1f1100f1, 0x210843b2, 0, "_Img4DecodeGetPropertyData");
 }
 
 void find_libc(void *ibot, int length) {
   insn_set(insn,
     0x2a3140a9, 0x2a3140a9, 0xb81a088b, 0x29195a8b, 0x2a0908cb);
   locate_func(ibot, length,
-    hex_set(2817, 0x4ae57a92, 0x2a0540b3), insn, "_memalign");
+    hex_set(2817, 0x4ae57a92, 0x2a0540b3), insn, 0, "_memalign");
 
-  locate_func(ibot, length, 0xbfae0071, 0xf60302aa, "_strtoull");
+  locate_func(ibot, length, 0xbfae0071, 0xf60302aa, 0, "_strtoull");
 
   insn_set(insn, 
     0x09fd46d3, 0x09fd46d3, 0x087c40d3, 0xc81240f9, 0xc81240f9);
   insn_set(_insn, 
     0xf30300aa, 0xf30300aa, 0xf30300aa, 0xff7e00f1, 0xe00314aa);
-  locate_func(ibot, length, insn, _insn, "_malloc");
+  locate_func(ibot, length, insn, _insn, 0, "_malloc");
 
   /* [NOTE]: _bcopy is translated to _memcpy (or _memmove). */
-  locate_func(ibot, length, 0x420400f1, 0x422000b1, "_memcpy");
+  locate_func(ibot, length, 0x420400f1, 0x422000b1, 0, "_memcpy");
 
-  locate_func(ibot, length, 0x217c039b, 0x211c4092, "_memset");
+  locate_func(ibot, length, 0x217c039b, 0x211c4092, 0, "_memset");
 
-  locate_func(ibot, length, 0x6300028b, 0x23740bd5, "_bzero");
+  locate_func(ibot, length, 0x6300028b, 0x23740bd5, 0, "_bzero");
 
   locate_func(ibot, length, 
     hex_set(2817, 0x6be57a92, 0x29e57a92), 
-    hex_set(2817, 0x49e57ad3, 0x28e57ad3), "_free");
+    hex_set(2817, 0x49e57ad3, 0x28e57ad3), 0, "_free");
 }
 
 // This one is kind of hard...
 void find_platform(void *ibot, int length) {
   locate_func(ibot, length,
     hex_set(5540, hex_set(4513, 0x005d1053, 0x94120011), 0x287b75b8),
-    hex_set(5540, hex_set(4513, 0x48c0a1f2, 0x605a36b8), 0xbf0a00f1), "_platform_update_device_tree");
+    hex_set(5540, hex_set(4513, 0x48c0a1f2, 0x605a36b8), 0xbf0a00f1), 0, "_platform_update_device_tree");
 
   locate_func(ibot, length, 
-    hex_set(5540, 0x2879a8b8, 0x307ab0b8), 0xe00313aa, "_platform_quiesce_hardware");
+    hex_set(5540, 0x2879a8b8, 0x307ab0b8), 0xe00313aa, 0, "_platform_quiesce_hardware");
 
   insn_set(insn,
     0x2011881a, 0x0011931a, 0x0011931a, 0x08011c12, 0x68021d32);
   insn_set(_insn,
     0x09011c32, 0x68021c32, 0x68021c32, 0x087c44d3, 0x1315881a);
-  locate_func(ibot, length, insn, _insn, "_platform_get_iboot_flags");
+  locate_func(ibot, length, insn, _insn, 0, "_platform_get_iboot_flags");
 
   locate_func(ibot, length, 
     hex_set(4513, hex_set(2817, 0x002d0c53, 0x007d1c53), 0x097d55d3), 
-    hex_set(4513, 0x48c0a1f2, 0x082540b9), "_platform_get_memory_size"); // iOS 9 to 12 : the function is below.
+    hex_set(4513, 0x48c0a1f2, 0x082540b9), 0, "_platform_get_memory_size"); // iOS 9 to 12 : the function is below.
 
   locate_func(ibot, length, 
     hex_set(2817, 0xe17f40b2, 0x01008012),
-    hex_set(5540, hex_set(3406, 0x680a0039, 0x68060039), 0x28008052), "_platform_init_display");
+    hex_set(5540, hex_set(3406, 0x680a0039, 0x68060039), 0x28008052), 0, "_platform_init_display");
 
-  locate_func(ibot, length, 0x60024039, 0xe10313aa, "_platform_early_init");
+  locate_func(ibot, length, 0x60024039, 0xe10313aa, 0, "_platform_early_init");
 
   insn_set(insn,
     0x49c0a1f2, 0x08fc60d3, 0x53c0a1f2, 0x5300c0f2, 0x680240b9);
-  locate_func(ibot, length, 0x29011f32, insn, "_platform_get_nonce");
+  locate_func(ibot, length, 0x29011f32, insn, 0, "_platform_get_nonce");
 
-  locate_func(ibot, length, 0x01190012, 0xe00313aa, "_platform_bootprep");
+  locate_func(ibot, length, 0x01190012, 0xe00313aa, 0, "_platform_bootprep");
 
-  locate_func(ibot, length, 0x13041f33, 0x2800002a, "_platform_disable_keys");
+  locate_func(ibot, length, 0x13041f33, 0x2800002a, 0, "_platform_disable_keys");
 }
 
 void find_load(void *ibot, int length) {
   insn_set(insn,
     0x0880a0f2, 0x0880a0f2, 0x0800a2f2, 0x0101c0f2, hex_set(4076, 0x1500a2f2, 0x1501c0f2));
-  locate_func(ibot, length, insn, hex_set(2817, 0xf40300aa, 0xf40302aa), "_load_kernelcache_file");
+  locate_func(ibot, length, insn, hex_set(2817, 0xf40300aa, 0xf40302aa), 0, "_load_kernelcache_file");
 
   locate_func(ibot, length, 
     hex_set(3406, 0x087d4093, 0xbfd20039),
-    hex_set(4076, 0x086d1c53, 0x08ed7cd3), "_load_bank_partitions");
+    hex_set(4076, 0x086d1c53, 0x08ed7cd3), 0, "_load_bank_partitions");
 
   insn_set(insn,
     0x0880a0f2, 0x0880a0f2, 0x0800a2f2, 0x0201c0f2, hex_set(4076, 0x1500a2f2, 0x1501c0f2));
   locate_func(ibot, length,
-    hex_set(5540, hex_set(3406, 0x060080d2, 0x070080d2), 0x40008012), insn, "_load_kernelcache");
+    hex_set(5540, hex_set(3406, 0x060080d2, 0x070080d2), 0x40008012), insn, 0, "_load_kernelcache");
 
   insn_set(insn,
     0x010140f9, 0x010140f9, 0x010140f9, 0xc100a052, hex_set(4076, 0x00e08472, 0x0040a072));
   insn_set(_insn,
     0xfd030091, 0xfd430091, 0xe10313aa, 0x0040a072, 0x02008052);
-  locate_func(ibot, length, insn, _insn, "_load_fs_firmware");
+  locate_func(ibot, length, insn, _insn, 0, "_load_fs_firmware");
 
-  locate_func(ibot, length, 0x1f017871, 0x28040051, "_load_sepos"); // That is not the real name !
+  locate_func(ibot, length, 0x1f017871, 0x28040051, 0, "_load_sepos"); // That is not the real name !
 }
 
 void find_usb(void *ibot, int length) {
   insn_set(insn,
     0x600a00f9, 0x600a00f9, 0x600600f9, 0x800200f9, 0x800600f9);
   locate_func(ibot, length,
-    hex_set(3406, 0x60820091, hex_set(5540, 0x80a20091, 0x34008052)), insn, "_usb_serial_early_init");
+    hex_set(3406, 0x60820091, hex_set(5540, 0x80a20091, 0x34008052)), insn, 0, "_usb_serial_early_init");
 
   insn_set(insn, 
     0x900d40f9, 0x900d40f9, 0x4b711d53, 0x4b711d53, 0x4b711d53);
   locate_func(ibot, length, 
-    insn, hex_set(2817, 0x8c3140f9, 0x6a2140b9), "_usb_core_start");
+    insn, hex_set(2817, 0x8c3140f9, 0x6a2140b9), 0, "_usb_core_start");
 
   insn_set(insn, 
     0xa0c20191, 0xa0c20191, 0x881a40f9, 0x6100a052, 0xa01e40f9);
-  locate_func(ibot, length, 0x020080d2, insn, "_usb_core_init");
+  locate_func(ibot, length, 0x020080d2, insn, 0, "_usb_core_init");
 }
 
 void find_der(void *ibot, int length) {
-  locate_func(ibot, length, hex_set(4076, 0x090280f2, 0x0900e4f2), 0xf60301aa, "_DERParseSequence");
+  locate_func(ibot, length, hex_set(4076, 0x090280f2, 0x0900e4f2), 0xf60301aa, 0, "_DERParseSequence");
 
   locate_func(ibot, length,
-    0x680600f9, hex_set(5540, hex_set(2261, 0x09fe9ff2, 0x08fd41d3), 0x0900e2f2), "_DERDecodeSeqInit");
+    0x680600f9, hex_set(5540, hex_set(2261, 0x09fe9ff2, 0x08fd41d3), 0x0900e2f2), 0, "_DERDecodeSeqInit");
 
   locate_func(ibot, length,
     hex_set(2817, 0x891240b9, 0x680200f9),
-    hex_set(4513, 0x682640a9, 0x082440a9), "_DERDecodeSeqNext");
+    hex_set(4513, 0x682640a9, 0x082440a9), 0, "_DERDecodeSeqNext");
 
-  locate_func(ibot, length, 0x09fd60d3, 0xf30301aa, "_DERParseInteger");
+  locate_func(ibot, length, 0x09fd60d3, 0xf30301aa, 0, "_DERParseInteger");
 
   locate_func(ibot, length,
-    hex_set(4076, hex_set(3406, 0x018a8672, 0xa1898672), 0x418a8652), 0xe30313aa, "_DERImg4DecodePayload");
+    hex_set(4076, hex_set(3406, 0x018a8672, 0xa1898672), 0x418a8652), 0xe30313aa, 0, "_DERImg4DecodePayload");
 
   locate_func(ibot, length,
     hex_set(4076, 0x418a8672, 0xa129a972),
-    hex_set(3406, 0x080840b9, 0x080440f9), "_DERImg4DecodeRestoreInfo");
+    hex_set(3406, 0x080840b9, 0x080440f9), 0, "_DERImg4DecodeRestoreInfo");
 
-  locate_func(ibot, length, 0x6002803d, 0x1f0114eb, "_DERImg4DecodeFindInSequence");
+  locate_func(ibot, length, 0x6002803d, 0x1f0114eb, 0, "_DERImg4DecodeFindInSequence");
 }
 
 void find_sep(void *ibot, int length) {
   locate_func(ibot, length, 
-    hex_set(5540, 0x2902a072, 0x2802a072), 0xf30300aa, "_sep_client_set_antireplay_size"); // A11+
+    hex_set(5540, 0x2902a072, 0x2802a072), 0xf30300aa, 0, "_sep_client_set_antireplay_size"); // A11+
 
   locate_func(ibot, length,
     hex_set(5540, 0x1a02a072, 0x1902a072),
-    hex_set(5540, 0xe0031f32, 0xf91f8052), "_sep_client_get_random_data"); // A10+
+    hex_set(5540, 0xe0031f32, 0xf91f8052), 0, "_sep_client_get_random_data"); // A10+
 
   locate_func(ibot, length, 
     hex_set(4076, 0xe80c8052, 0xfadf8d52), 
-    hex_set(2817, 0xe0031f32, 0xf30300aa), "__sep_client_get_nonce");
+    hex_set(2817, 0xe0031f32, 0xf30300aa), 0, "__sep_client_get_nonce");
 }
 
 void *find_funcs(void *ibot, int length, int extra) {
@@ -294,7 +294,7 @@ void *find_funcs(void *ibot, int length, int extra) {
     0xe20313aa, 0xe20313aa, 0xe20313aa, 0x140500b9, hex_set(4513, 0x29010032, 0x140500b9));
   insn_set(_insn,
     0xc06640b9, 0xc06640b9, 0xc06640b9, 0x880090d2, hex_set(4513, 0x29010032, 0x140500b9));
-  locate_func(ibot, length, insn, _insn, "_uart_init");
+  locate_func(ibot, length, insn, _insn, 0, "_uart_init");
 
   find_image(ibot, length);
 
@@ -309,38 +309,60 @@ void *find_funcs(void *ibot, int length, int extra) {
   find_usb(ibot, length);
 
   if (extra) {
-    locate_func(ibot, length, 0x48210b9b, 0x0b098052, "_rtbuddy_register_endpoint"); // A11+ (iOS 12+)
+    locate_func(ibot, length, 0x48210b9b, 0x0b098052, 0, "_rtbuddy_register_endpoint"); // A11+ (iOS 12+)
 
     locate_func(ibot, length,
-      0x1fc100f1, hex_set(3406, 0xa81240f9, 0x681240f9), "_verify_chain_signatures"); // iOS 9+
+      0x1fc100f1, hex_set(3406, 0xa81240f9, 0x681240f9), 0, "_verify_chain_signatures"); // iOS 9+
+
+    locate_func(ibot, length, 0x015238d5, 0xbf4000d5, 1, "_exception_vector_base");
+
+    locate_func(ibot, length, 0xdf3f03d5, 0x00e21bd5, 1, "_write_phys_timer_ctl");
 
     locate_func(ibot, length,
       hex_set(2817, 0x090100b9, 0x080140f9),
-      hex_set(2817, 0x1f510071, 0xc81040f9), "_verify_signature_rsa"); // ?
+      hex_set(2817, 0x1f510071, 0xc81040f9), 0, "_verify_signature_rsa"); // ?
 
-    locate_func(ibot, length, 0xff830091, 0x0800088b, "_alloc_kernel_mem"); // iOS 10+
+    locate_func(ibot, length, 0xdf3f03d5, 0x20e21bd5, 1, "_write_cntp_ctl_el0");
+
+    locate_func(ibot, length, 0x20e23bd5, 0xdf3f03d5, 1, "_read_cntp_ctl_el0");
+
+    locate_func(ibot, length,
+      hex_set(3406, 0x170080d2, 0x3f810071),
+      hex_set(3406, 0xea079f1a, 0xe8024039), 0, "_contains_boot_arg");
+
+    locate_func(ibot, length, 0xff830091, 0x0800088b, 0, "_alloc_kernel_mem"); // iOS 10+
     
     insn_set(insn,
       0x60023fd6, 0xa0023fd6, 0x80023fd6, 0x680d8052, 0x80023fd6);
-    locate_func(ibot, length, insn, 0x03008052, "_prepare_and_jump");
+    locate_func(ibot, length, insn, 0x03008052, 0, "_prepare_and_jump");
 
-    locate_func(ibot, length, 0x63040091, 0x01014079, "_verify_pkcs1_sig");
+    locate_func(ibot, length, 0x63040091, 0x01014079, 0, "_verify_pkcs1_sig");
 
-    locate_func(ibot, length, 0xe0039f5a, 0xe30316aa, "_aes_crypto_cmd");
+    locate_func(ibot, length, 0x9f3f03d5, 0x1f7508d5, 1, "__invalidate_pou");
 
-    locate_func(ibot, length, 0x00815fb8, 0xf30302aa, "_boot_object");
+    locate_func(ibot, length, 0xe0039f5a, 0xe30316aa, 0, "_aes_crypto_cmd");
+
+    locate_func(ibot, length,
+      0x9f3f03d5, hex_set(3406, 0x00101ed5, 0x001018d5), 1, "_arm_write_sctlr");
+
+    locate_func(ibot, length, 0x00815fb8, 0xf30302aa, 0, "_boot_object");
   }
 
-  insn_set(insn, 0x480100f9, 0x880300f9, 0x0801138b, 0x080300f9, 0x0801138b);
-  locate_func(ibot, length, 0x010080d2, insn, "_macho_load");
+  insn_set(insn,
+    0x480100f9, 0x880300f9, 0x0801138b, 0x080300f9, 0x0801138b);
+  locate_func(ibot, length, 0x010080d2, insn, 0, "_macho_load");
 
-  locate_func(ibot, length, 0xa11a40f9, 0xe00308aa, "_nvram_save");
+  locate_func(ibot, length, 0xa11a40f9, 0xe00308aa, 0, "_nvram_save");
+
+  locate_func(ibot, length, 0xdf4303d5, 0x22423bd5, 1, "_mmu_kvtop");
 
   find_libc(ibot, length);
 
   locate_func(ibot, length,
     hex_set(4076, 0x20018052, 0x3f0d0071),
-    hex_set(4076, 0x08050011, 0x29050011), "_panic");
+    hex_set(4076, 0x08050011, 0x29050011), 0, "_panic");
+
+  locate_func(ibot, length, 0x9f3f03d5, hex_set(3406, 0x1f870ed5, 0x1f8708d5), 1, "_tlbi"); // iBootPatcher
 
   return ibot;
 }
@@ -420,12 +442,7 @@ int main(int argc, char *argv[]) {
 
     version = atoi(ibot + 0x286);
 
-    if (version >= 6603) {
-      printf("[%s]: iOS 14 is not supported yet, come back soon!\n", __func__);
-      return -1;
-    }
-
-    base = *(uint64_t *)(ibot + 0x318);
+    base = *(uint64_t *)(ibot + hex_set(6603, 0x318, 0x300));
 
     printf("[%s]: base_addr = 0x%llx\n", __func__, base);
 
