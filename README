@@ -12,8 +12,9 @@ II. Usage
 	   -f, --find	find functions of a decrypted iBoot64.
 	   -e, --extra	try to find more iBoot functions.
 
-	$ iBoot64Finder --find iBoot.d421.RELEASE.dec --extra
+	$ iBoot64Finder -f iBoot.j273a.RELEASE.bin -e
 
 IV. Notes
-	> I highly advise to use this tool on the lastest versions (iOS 7.1.2 | 13.6 | ...),
+	> SecureROM is not a priority but I will add a support for later,
+	> I highly advise to use this tool on the lastest versions (iOS 7.1.x | 12.4.x | ...),
 	> This project was made for programming skills and knowledges improvement with bootloaders.

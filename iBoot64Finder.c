@@ -94,12 +94,12 @@ uint64_t locate_func(void *ibot, int length, uint32_t insn, uint32_t _insn, int 
   return 0;
 }
 
-/* iOS 7 | iOS 8 | iOS 9 | iOS 13 | iOS 10 to 12 */
+/* iOS 7 | iOS 8 | iOS 9 | iOS 13 - 14 | iOS 10 to 12 */
 #define insn_set(x, vers1, vers2, vers3, vers4, vers5) \
 if      (version == 1940) x = vers1; \
 else if (version == 2261) x = vers2; \
 else if (version == 2817) x = vers3; \
-else if (version == 5540) x = vers4; \
+else if (version >= 5540) x = vers4; \
 else                      x = vers5;
 
 // https://armconverter.com/ (HEX to ASM)
@@ -120,12 +120,12 @@ void find_image(void *ibot, int length) {
     hex_set(4013, hex_set(3406, 0x810240f9, 0x010b40b9), 0x48af8d52), 0, "_image_load_file");
 
   insn_set(insn, 
-    0x2a5d1053, 0x0a5d1053, 0x0a5d1053, 0x2b5d1053, 0x2b5d1053);
+    0x2a5d1053, 0x0a5d1053, 0x0a5d1053, hex_set(6603, 0x2b5d1053, 0x09294429), 0x2b5d1053);
   locate_func(ibot, length, 0xe00313aa, insn, 0, "_image4_dump_list");
 
   locate_func(ibot, length, 
-    hex_set(5540, 0x1f000871, 0xa81640f9), 
-    hex_set(5540, 0x00013fd6, 0x02408052), 0, "_image_search_bdev");
+    hex_set(5540, 0x1f000871, 0x03408052), 
+    hex_set(5540, 0x00013fd6, 0x01088052), 0, "_image_search_bdev");
 
   locate_func(ibot, length, 
     hex_set(3406, 0xe20307aa, 0xf40307aa), 
@@ -141,7 +141,7 @@ void find_image(void *ibot, int length) {
     hex_set(4076, 0x48af8d72, 0xa8aca972), 0, "_image_create_from_memory");
 
   insn_set(insn,
-    0x0841298b, 0x6931899a, 0x6931899a, 0xc8038052, 0x20013fd6);
+    0x0841298b, 0x6931899a, 0x6931899a, 0x6832881a, 0x20013fd6);
   insn_set(_insn,
     0xea279f1a, 0x2b0840b9, 0x2b0840b9, 0xa80e40f9, 0xc91640f9);
   locate_func(ibot, length, insn, _insn, 0, "_image4_process_superblock");
@@ -334,6 +334,10 @@ void *find_funcs(void *ibot, int length, int extra) {
 
     locate_func(ibot, length, 0x20e23bd5, 0xdf3f03d5, 1, "_read_cntp_ctl_el0");
 
+    locate_func(ibot, length, 0xc0035fd6, 0x401018d5, 1, "_write_cpacr_el1");
+
+    locate_func(ibot, length, 0xc0035fd6, 0x401038d5, 1, "_read_cpacr_el1");
+
     locate_func(ibot, length,
       hex_set(3406, 0x170080d2, 0x3f810071),
       hex_set(3406, 0xea079f1a, 0xe8024039), 0, "_contains_boot_arg");
@@ -341,8 +345,8 @@ void *find_funcs(void *ibot, int length, int extra) {
     locate_func(ibot, length, 0xff830091, 0x0800088b, 0, "_alloc_kernel_mem"); // iOS 10+
     
     insn_set(insn,
-      0x60023fd6, 0xa0023fd6, 0x80023fd6, 0x680d8052, 0x80023fd6);
-    locate_func(ibot, length, insn, 0x03008052, 0, "_prepare_and_jump");
+      0x60023fd6, 0xa0023fd6, 0x80023fd6, 0xe00315aa, 0x80023fd6);
+    locate_func(ibot, length, insn, hex_set(5540, 0x03008052, 0x010000d4), 0, "_prepare_and_jump");
 
     locate_func(ibot, length, 0x63040091, 0x01014079, 0, "_verify_pkcs1_sig");
 
@@ -353,14 +357,12 @@ void *find_funcs(void *ibot, int length, int extra) {
     locate_func(ibot, length,
       0x9f3f03d5, hex_set(3406, 0x00101ed5, 0x001018d5), 1, "_arm_write_sctlr");
 
-    locate_func(ibot, length, 0x00815fb8, 0xf30302aa, 0, "_boot_object");
+    locate_func(ibot, length, hex_set(6603, 0x00815fb8, 0x14815fb8), 0xf30302aa, 0, "_boot_object");
   }
 
   insn_set(insn,
-    0x480100f9, 0x880300f9, 0x0801138b, 0x080300f9, 0x0801138b);
-  locate_func(ibot, length, 0x010080d2, insn, 0, "_macho_load");
-
-  locate_func(ibot, length, 0xa11a40f9, 0xe00308aa, 0, "_nvram_save");
+    0x480100f9, 0x880300f9, 0x0801138b, 0x3f0100f1, 0x0801138b);
+  locate_func(ibot, length, hex_set(5540, 0x010080d2, 0xd602889a), insn, 0, "_macho_load");
 
   locate_func(ibot, length, 0xdf4303d5, 0x22423bd5, 1, "_mmu_kvtop");
 
