@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -95,6 +97,8 @@ uint64_t locate_func(uint32_t insn, uint32_t _insn, bool x, char *func) {
       loc = (uint64_t)((uintptr_t)first_occur - (uintptr_t)ibot);
  
       if (x == 0) beg = bof64(ibot, 0x0, loc); // Functions with prologues
+
+      if (detect_pac() == true) beg -= 0x4;
  
       printf("[%s]: %s = 0x%llx\n", __func__, func, (base + (x ? loc : beg)));
  
