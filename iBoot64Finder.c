@@ -126,7 +126,7 @@ void find_image(void) {
   locate_func(hex_set(4076, hex_set(3406, 0x89e68c72, 0xc0008072), 0x6000a872), 
     hex_set(4076, hex_set(3406, 0x080c40b9, 0x6000a852), 0xc0008052), false, "_image_load");
 
-  locate_func(pac_condition(0x29090253, 0x09090253),
+  locate_func(0x09090253,
     hex_set(2817, 0x010a80d2, hex_set(4076, 0x020a8052, 0xe803002a)), false, "_image4_load");
 
   locate_func(0x6082813c, hex_set(2817, 0x61220591, 0xc0c20091), false, "_Img4DecodeInit");
@@ -406,7 +406,7 @@ void *find_funcs(int extra) {
 
   insn_set(insn,
     0x480100f9, 0x880300f9, 0x0801138b, 0x3f0100f1, 0x0801138b);
-  locate_func(hex_set(5540, 0x010080d2, pac_condition(0x29059f1a, 0xd602889a)), insn, false, "_macho_load");
+  locate_func(hex_set(5540, 0x010080d2, 0xd602889a), insn, false, "_macho_load");
 
   locate_func(0xdf4303d5, 0x22423bd5, true, "_mmu_kvtop");
 
