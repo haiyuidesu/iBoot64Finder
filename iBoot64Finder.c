@@ -117,6 +117,7 @@ else if (version == 2817) x = vers3; \
 else if (version >= 5540) x = vers4; \
 else                      x = vers5;
 
+// I basically wrote this for the DTK iBoot but... I am lost...
 #define pac_condition(hex1, hex2) ((detect_pac() && version >= 6603) ? hex1 : hex2)
 
 // https://armconverter.com/ (If you ever try to translate every offsets here, I will give you a cola).
@@ -133,27 +134,28 @@ void find_image(void) {
   locate_func(hex_set(4013, hex_set(3406, 0xe20318aa, 0x48af8d72), 0x6000a872), 
     hex_set(4013, hex_set(3406, 0x810240f9, 0x010b40b9), 0x80018052), false, "_image_load_file");
 
+
   insn_set(insn, 
     0x2a5d1053, 0x0a5d1053, 0x0a5d1053, 
-    hex_set(6603, 0x2b5d1053, pac_condition(0x350140f9, 0x09294429)), 0x2b5d1053);
-  locate_func(pac_condition(0x085d1053, 0xe00313aa), insn, false, "_image4_dump_list");
+    hex_set(6603, 0x2b5d1053, 0x09294429), 0x2b5d1053);
+  locate_func(0xe00313aa, insn, false, "_image4_dump_list");
 
   locate_func(hex_set(5540, 0x1f000871, 0x03408052),
-    hex_set(5540, 0x00013fd6, pac_condition(0x282140f9, 0x01088052)), false, "_image_search_bdev");
+    hex_set(5540, 0x00013fd6, 0x01088052), false, "_image_search_bdev");
 
-  locate_func(hex_set(3406, 0xe20307aa, pac_condition(0xb98358f8, 0xf40307aa)),
-    hex_set(3406, 0xf30306aa, pac_condition(0xa0e301d1, 0xfd030191)), false, "_image_load_memory");
+  locate_func(hex_set(3406, 0xe20307aa, 0xf40307aa),
+    hex_set(3406, 0xf30306aa, 0xfd030191), false, "_image_load_memory");
 
-  locate_func(hex_set(3406, 0x0100e4d2, pac_condition(0x8a0a40f9, 0xf5030091)),
-    pac_condition(0x16610091, 0xf30302aa), false, "_image4_get_partial");
+
+  locate_func(hex_set(3406, 0x0100e4d2, 0xf5030091), 0xf30302aa, false, "_image4_get_partial");
 
   locate_func(0x8082c93c, 0xe00314aa, false, "_Img4DecodeGetPayload");
 
-  locate_func(hex_set(3406, 0x08cc0129, pac_condition(0xe8560129, 0x084c0129)),
+  locate_func(hex_set(3406, 0x08cc0129, 0x084c0129),
     hex_set(4076, 0x48af8d72, 0xa8aca972), false, "_image_create_from_memory");
 
   insn_set(insn,
-    0x0841298b, 0x6931899a, 0x6931899a, pac_condition(0x79328b1a, 0x6832881a), 0x20013fd6);
+    0x0841298b, 0x6931899a, 0x6931899a, 0x6832881a, 0x20013fd6);
   insn_set(_insn,
     0xea279f1a, 0x2b0840b9, 0x2b0840b9, 0x7f7a00f1, 0xc91640f9);
   locate_func(insn, _insn, false, "_image4_process_superblock");
@@ -169,11 +171,6 @@ void find_image(void) {
     hex_set(3406, 0x090c40f9, 0x080d40f9), true, "_Img4DecodeManifestExists");
 }
 
-/*
- * iOS 14 PAC : Most of the libc functions became weird
- * so I did not managed to find most of them.
- * I apologize.
- */
 void find_libc(void) {
   insn_set(insn,
     0x2a3140a9, 0x2a3140a9, 0xb81a088b, 0x29195a8b, 0x2a0908cb);
@@ -181,25 +178,22 @@ void find_libc(void) {
 
   locate_func(0xbfae0071, 0xf60302aa, false, "_strtoull");
 
-  locate_func(hex_set(2817, 0x0a1d0012, pac_condition(0x3f1d0072, 0x091d0012)),
-    pac_condition(0x4a014039, 0x28004039), true, "_strncmp");
+  locate_func(hex_set(2817, 0x0a1d0012, 0x091d0012), 0x28004039, true, "_strncmp");
 
   locate_func(0x0809C19a, 0x08008012, true, "_calloc");
 
   locate_func(0x1f01216b, 0x08004039, true, "_strchr");
 
-  locate_func(pac_condition(0x00040091, hex_set(3406, 0x29054039, 0x000500d1)),
-    pac_condition(0x6b014039, hex_set(3406, 0x0901008b, 0x09686838)), true, "_strlen");
+  locate_func(hex_set(3406, 0x29054039, 0x000500d1),
+    hex_set(3406, 0x0901008b, 0x09686838), true, "_strlen");
+  
+  if (version >= 2817) locate_func(0x8c050091, 0x8d014039, true, "_strsep");
 
-  if ((version <= 6603) || ((version >= 6603) && detect_pac() == false)) {
-    if (version >= 2817) locate_func(0x8c050091, 0x8d014039, true, "_strsep");
-
-    insn_set(insn, 
-      0x09fd46d3, 0x09fd46d3, 0x6be57ad3, 0xc81240f9, 0xc81240f9);
-    insn_set(_insn, 
-      0xf30300aa, 0xf30300aa, 0xab1240f9, 0xff7e00f1, 0xe00314aa);
-    locate_func(insn, _insn, false, "_malloc");
-  } // To avoid a segmentation fault.
+  insn_set(insn, 
+    0x09fd46d3, 0x09fd46d3, 0x6be57ad3, 0xc81240f9, 0xc81240f9);
+  insn_set(_insn, 
+    0xf30300aa, 0xf30300aa, 0xab1240f9, 0xff7e00f1, 0xe00314aa);
+  locate_func(insn, _insn, false, "_malloc");
 
   /* [NOTE]: _bcopy is translated to _memcpy (or _memmove). */
   locate_func(0x420400f1, 0x422000b1, false, "_memcpy");
@@ -234,7 +228,7 @@ void find_platform(void) {
 
   insn_set(insn,
     0x49c0a1f2, 0x08fc60d3, 0x53c0a1f2, 0x5300c0f2, 0x680240b9);
-  locate_func(pac_condition(0x08011f32, 0x29011f32), insn, false, "_platform_get_nonce");
+  locate_func(0x29011f32, insn, false, "_platform_get_nonce");
 
   locate_func(0x01190012, 0xe00313aa, false, "_platform_bootprep");
 
@@ -263,17 +257,17 @@ void find_load(void) {
 
 void find_usb(void) {
   insn_set(insn,
-    0x600a00f9, 0x600a00f9, 0x600600f9, pac_condition(0x020d01a9, 0x800200f9), 0x800600f9);
+    0x600a00f9, 0x600a00f9, 0x600600f9, 0x800200f9, 0x800600f9);
   locate_func(hex_set(3406, 0x60820091,
     hex_set(5540, 0x80a20091, 0x00008252)), insn, false, "_usb_serial_early_init");
 
   insn_set(insn, 
-    0x900d40f9, 0x900d40f9, 0x4b711d53, pac_condition(0x09711d53, 0x4b711d53), 0x4b711d53);
-  locate_func(insn, hex_set(2817, 0x8c3140f9, pac_condition(0x087da80a, 0x6a2140b9)), false, "_usb_core_start");
+    0x900d40f9, 0x900d40f9, 0x4b711d53, 0x4b711d53, 0x4b711d53);
+  locate_func(insn, hex_set(2817, 0x8c3140f9, 0x6a2140b9), false, "_usb_core_start");
 
   insn_set(insn, 
-    0xa0c20191, 0xa0c20191, 0x881a40f9, pac_condition(0x020d01a9, 0x6100a052), 0xa01e40f9);
-  locate_func(pac_condition(0x02208052, 0x020080d2), insn, false, "_usb_core_init");
+    0xa0c20191, 0xa0c20191, 0x881a40f9, 0x6100a052, 0xa01e40f9);
+  locate_func(0x020080d2, insn, false, "_usb_core_init");
 }
 
 void find_der(void) {
@@ -388,7 +382,7 @@ void *find_funcs(int extra) {
       locate_func(0xc0035fd6, 0x402018d5, true, "_write_tcr_el1");
     } // use iBootPatcher and remove the condition.
 
-    locate_func(hex_set(3406, 0x170080d2, pac_condition(0x1f810071, 0x3f810071)),
+    locate_func(hex_set(3406, 0x170080d2, 0x3f810071),
       hex_set(3406, 0xea079f1a, 0xe8024039), false, "_contains_boot_arg");
 
     if (version < 6603) locate_func(0xff830091, 0x0800088b, false, "_alloc_kernel_mem"); // iOS 10+
@@ -401,7 +395,7 @@ void *find_funcs(int extra) {
 
     locate_func(0x9f3f03d5, 0x1f7508d5, true, "__invalidate_cache_pou");
 
-    locate_func(0xe0039f5a, pac_condition(0x882c0072, 0xe30316aa), false, "_aes_crypto_cmd");
+    locate_func(0xe0039f5a, 0xe30316aa, false, "_aes_crypto_cmd");
 
     locate_func(0x9f3f03d5, hex_set(3406, 0x00101ed5, 0x001018d5), true, "_arm_write_sctlr");
 

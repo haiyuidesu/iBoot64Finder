@@ -17,5 +17,4 @@ II. Usage
 IV. Notes
 	> SecureROM is not a priority but I will add a support for later,
 	> I highly advise to use this tool on the lastest versions (iOS 7.1.x | 12.4.x | ...),
-	> An issue is known for iBoot & LLB of the DTK, if you want the support just open an issue,
 	> This project was made for programming skills and knowledges improvement with bootloaders.
