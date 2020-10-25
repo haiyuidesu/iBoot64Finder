@@ -164,6 +164,9 @@ void find_image(void) {
   locate_func(0x1f0500f1, 0x210843b2, false, "_Img4DecodeGetPropertyBoolean");
 
   locate_func(0x1f1100f1, 0x210843b2, false, "_Img4DecodeGetPropertyData");
+
+  locate_func(hex_set(3406, 0x29000039, 0x28000039),
+    hex_set(3406, 0x090c40f9, 0x080d40f9), true, "_Img4DecodeManifestExists");
 }
 
 /*
@@ -255,7 +258,7 @@ void find_load(void) {
     0xfd030091, 0xfd430091, 0xe10313aa, 0x0040a072, 0x02008052);
   locate_func(insn, _insn, false, "_load_fs_firmware");
 
-  locate_func(0x1f017871, 0x28040051, false, "_load_sepos"); // That is not the real name !
+  locate_func(0x1f080872, 0x08000432, false, "_load_sepos"); // iOS 12+
 }
 
 void find_usb(void) {
@@ -274,13 +277,22 @@ void find_usb(void) {
 }
 
 void find_der(void) {
+  locate_func(0x00008012, hex_set(3406, 0x090940b9, 0x080440f9), false, "_DERImg4DecodeTagCompare");
+
   locate_func(hex_set(4076, 0x090280f2, 0x0900e4f2), 0xf60301aa, false, "_DERParseSequence");
+
+  locate_func(hex_set(4513, 0xe003881a, 0x00791f53), 0xe30313aa, false, "_DERImg4Decode");
+
+  locate_func(0x09fd60d3, 0xf30301aa, false, "_DERParseInteger");
+
+  locate_func(0x28000039,
+    hex_set(3406, hex_set(2261, 0x1ffd0371, 0x291d0012), 0x0419407a), true, "_DERParseBoolean");
+
+  locate_func(0x08014039, 0x5f000039, true, "_DERParseBitString");
 
   locate_func(0x680600f9, hex_set(5540, hex_set(2261, 0x09fe9ff2, 0x08fd41d3), 0x0900e2f2), false, "_DERDecodeSeqInit");
 
   locate_func(hex_set(2817, 0x891240b9, 0x680200f9), hex_set(4513, 0x682640a9, 0x082440a9), false, "_DERDecodeSeqNext");
-
-  locate_func(0x09fd60d3, 0xf30301aa, false, "_DERParseInteger");
 
   locate_func(hex_set(4076, hex_set(3406, 0x018a8672, 0xa1898672), 0x418a8652), 0xe30313aa, false, "_DERImg4DecodePayload");
 
@@ -319,11 +331,44 @@ void *find_funcs(int extra) {
   find_usb();
 
   if (extra) {
+    locate_func(0x08054039, 0x04148052, false, "_parse_chain");
+
+    locate_func(0x163d0012, 0x084c40f9, false, "_parse_extensions"); // iOS 10+
+
+    locate_func(0x09fc1f38, 0x290c4092, true, "_decode_ascii");
+
+    locate_func(hex_set(5540, 0x08008092, 0x097d00a9),
+      hex_set(5540, 0x0801092a, 0x09008092), false, "_security_init");
+
+    locate_func(hex_set(2817, 0x0001090a, 0x4001080a), 0xe8879f1a, true, "_security_allow_memory");
+
+    locate_func(hex_set(5540, 0x09fd00a9, 0x0800018b),
+      hex_set(5540, 0x09008092, 0x097d00a9), true, "_security_protect_memory");
+
+    locate_func(hex_set(4513, hex_set(2817, 0xb482969a, 0xd582939a), 0x7502969a),
+      hex_set(4513, hex_set(2817, 0xdf0215eb, 0x7f0216eb), 0x68fe5cd3), false, "_security_clear_memory_in_chunks");
+
+    locate_func(hex_set(5540, 0x0000080a, 0x0000098a),
+      0x68020052, true, "_security_get_effective_production_status");
+
     locate_func(  0x1fc100f1, hex_set(3406, 0xa81240f9, 0x681240f9), false, "_verify_chain_signatures"); // iOS 9+
 
     locate_func(0x015238d5, 0xbf4000d5, true, "_exception_vector_base");
 
     locate_func(0xdf3f03d5, 0x00e21bd5, true, "_write_phys_timer_ctl");
+
+    locate_func(hex_set(3406, hex_set(2817, 0x4a050011, 0x68050011), 0x092c00b9),
+      hex_set(3406, hex_set(2817, 0x5fa10f71, 0x7fa10f71), 0x09050011), false, "_enter_critical_section");
+
+    locate_func(hex_set(3406, 0x4a050051, 0x082c00b9),
+      hex_set(3406, hex_set(2817, 0x090140f9, 0x5f010071), 0x1f010071), false, "_exit_critical_section");
+
+    locate_func(hex_set(3406, hex_set(2817, 0x29910111, 0x48910111), 0x082c00b9),
+      hex_set(3406, hex_set(2817, 0x3fa10f71, 0x5fa10f71), 0x08910111), false, "_irq_enter_critical_section");
+
+    locate_func(0x20e23bd5, 0xdf3f03f5, true, "_read_counter_phys_ctl_reg_el0");
+
+    locate_func(0xdf3f03f5, 0x20e23bd5, true, "_write_counter_phys_ctl_reg_el0");
 
     locate_func(hex_set(2817, 0x090100b9, 0x080140f9), hex_set(2817, 0x1f510071, 0xc81040f9), false, "_verify_signature_rsa");
 
@@ -334,6 +379,14 @@ void *find_funcs(int extra) {
     locate_func(0xc0035fd6, 0x401018d5, true, "_write_cpacr_el1");
 
     locate_func(0xc0035fd6, 0x401038d5, true, "_read_cpacr_el1");
+
+    if (version >= 3406) {
+      locate_func(0xc0035fd6, 0x001038d5, true, "_read_sctlr_el1");
+
+      locate_func(0xc0035fd6, 0x00a218d5, true, "_write_mair_el1");
+
+      locate_func(0xc0035fd6, 0x402018d5, true, "_write_tcr_el1");
+    } // use iBootPatcher and remove the condition.
 
     locate_func(hex_set(3406, 0x170080d2, pac_condition(0x1f810071, 0x3f810071)),
       hex_set(3406, 0xea079f1a, 0xe8024039), false, "_contains_boot_arg");
@@ -346,13 +399,15 @@ void *find_funcs(int extra) {
 
     locate_func(0x63040091, 0x01014079, false, "_verify_pkcs1_sig");
 
-    locate_func(0x9f3f03d5, 0x1f7508d5, true, "__invalidate_pou");
+    locate_func(0x9f3f03d5, 0x1f7508d5, true, "__invalidate_cache_pou");
 
-    locate_func(0xe0039f5a, pac_condition(0x882C0072, 0xe30316aa), false, "_aes_crypto_cmd");
+    locate_func(0xe0039f5a, pac_condition(0x882c0072, 0xe30316aa), false, "_aes_crypto_cmd");
 
     locate_func(0x9f3f03d5, hex_set(3406, 0x00101ed5, 0x001018d5), true, "_arm_write_sctlr");
 
     locate_func(hex_set(6603, 0x00815fb8, 0x14815fb8), 0xf30302aa, false, "_boot_object");
+
+    locate_func(0x9f3f03d5, hex_set(3406, 0x1f870ed5, 0x1f8708d5), true, "_reload_cache"); // iBootPatcher
   }
 
   insn_set(insn,
@@ -364,8 +419,6 @@ void *find_funcs(int extra) {
   find_libc();
 
   locate_func(hex_set(4076, 0x20018052, 0x3f0d0071), hex_set(4076, 0x08050011, 0x29050011), false, "_panic");
-
-  locate_func(0x9f3f03d5, hex_set(3406, 0x1f870ed5, 0x1f8708d5), true, "_tlbi"); // iBootPatcher
 
   return ibot;
 }
