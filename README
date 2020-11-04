@@ -14,7 +14,12 @@ II. Usage
 
 	$ iBoot64Finder -f iBoot.j273a.RELEASE.bin -e
 
+III. Features
+	> Some plugins were made to import all functions found in a reversing tool :
+
+	IDA Pro : https://github.com/haiyuidesu/ida64finder
+	Binja   : https://github.com/matteyeux/iBoot64Finder-importer
+
 IV. Notes
-	> SecureROM is not a priority but I will add a support for later,
 	> I highly advise to use this tool on the lastest versions (iOS 7.1.x | 12.4.x | ...),
 	> This project was made for programming skills and knowledges improvement with bootloaders.

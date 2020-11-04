@@ -117,9 +117,6 @@ else if (version == 2817) x = vers3; \
 else if (version >= 5540) x = vers4; \
 else                      x = vers5;
 
-// I basically wrote this for the DTK iBoot but... I am lost...
-#define pac_condition(hex1, hex2) ((detect_pac() && version >= 6603) ? hex1 : hex2)
-
 // https://armconverter.com/ (If you ever try to translate every offsets here, I will give you a cola).
 
 void find_image(void) {
@@ -134,7 +131,6 @@ void find_image(void) {
   locate_func(hex_set(4013, hex_set(3406, 0xe20318aa, 0x48af8d72), 0x6000a872), 
     hex_set(4013, hex_set(3406, 0x810240f9, 0x010b40b9), 0x80018052), false, "_image_load_file");
 
-
   insn_set(insn, 
     0x2a5d1053, 0x0a5d1053, 0x0a5d1053, 
     hex_set(6603, 0x2b5d1053, 0x09294429), 0x2b5d1053);
@@ -145,7 +141,6 @@ void find_image(void) {
 
   locate_func(hex_set(3406, 0xe20307aa, 0xf40307aa),
     hex_set(3406, 0xf30306aa, 0xfd030191), false, "_image_load_memory");
-
 
   locate_func(hex_set(3406, 0x0100e4d2, 0xf5030091), 0xf30302aa, false, "_image4_get_partial");
 
