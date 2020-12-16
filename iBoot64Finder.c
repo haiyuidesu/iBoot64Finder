@@ -7,10 +7,11 @@
 #include <stdbool.h>
 
 int length = 0;
+bool paced = 0;
 void *ibot = NULL;
 uint64_t base = 0;
 uint32_t version = 0;
-uint64_t insn = 0, _insn = 0;
+uint64_t _print = 0, insn = 0;
 
 // Thank you @b1n4r1b01 and @xerub !
 
@@ -18,9 +19,71 @@ uint64_t insn = 0, _insn = 0;
 
 #define hex_set(vers, hex1, hex2) ((version < vers) ? hex1 : hex2)
 
-uint64_t bof64(const void *buf, uint64_t start, uint64_t where) {
+uint64_t xref64(uint64_t start, uint64_t what) {
+  uint64_t i;
+  uint64_t value[32];
+
+  memset(value, 0, sizeof(value));
+
+  uint64_t end = length;
+
+  end &= ~0x3;
+
+  for (i = start & ~0x3; i < end; i += 0x4) {
+    uint32_t op = *(uint32_t*)(ibot + i);
+    unsigned reg = op & 0x1f;
+
+    if ((op & 0x9f000000) == 0x90000000) {
+      signed adr = ((op & 0x60000000) >> 0x12) | ((op & 0xffffe0) << 8);
+      value[reg] = ((long long) adr << 1) + (i & ~0xfff);
+    } else if ((op & 0xff000000) == 0x91000000) {
+      unsigned rn = (op >> 0x5) & 0x1f;
+    if (rn == 0x1f) {
+      value[reg] = 0;
+      continue;
+    }
+
+    unsigned shift = (op >> 0x16) & 0x3;
+    unsigned imm = (op >> 0xA) & 0xfff;
+
+    if (shift == 1) {
+      imm <<= 0xC;
+    } else {
+      if (shift > 1) continue;
+    }
+
+    value[reg] = value[rn] + imm;
+  } else if ((op & 0xf9C00000) == 0xf9400000) {
+    unsigned rn = (op >> 0x5) & 0x1f;
+    unsigned imm = ((op >> 0xA) & 0xfff) << 0x3;
+    if (!imm) continue;
+    value[reg] = value[rn] + imm;
+  } else if ((op & 0x9f000000) == 0x10000000) {
+    signed adr = ((op & 0x60000000) >> 0x12) | ((op & 0xffffe0) << 8);
+    value[reg] = ((long long)adr >> 0xB) + i;
+  } else if ((op & 0xff000000) == 0x58000000) {
+    unsigned adr = (op & 0xffffe0) >> 3;
+    value[reg] = adr + i;
+  } else if ((op & 0xFC000000) == 0x94000000) {
+    // BL addr
+    signed imm = (op & 0x3ffffff) << 2;
+    if (op & 0x2000000) {
+      imm |= 0xf << 0x1c;
+    }
+    unsigned adr = (unsigned)(i + imm);
+    if (adr == what) {
+      return i;
+    }
+  }
+  if (value[reg] == what && reg != 0x1f) return i;
+}
+
+return 0;
+}
+
+uint64_t bof64(uint64_t start, uint64_t where) {
   for (; where >= start; where -= 0x4) {
-    uint32_t op = *(uint32_t *)(buf + where);
+    uint32_t op = *(uint32_t *)(ibot + where);
     
     if ((op & 0xffc003ff) == 0x910003fd) {
       unsigned delta = (op >> 10) & 0xfff;
@@ -28,14 +91,14 @@ uint64_t bof64(const void *buf, uint64_t start, uint64_t where) {
       if ((delta & 0xf) == 0) {
         uint64_t prev = where - ((delta >> 0x4) + 1) * 0x4;
 
-        uint32_t au = *(uint32_t *)(buf + prev);
+        uint32_t au = *(uint32_t *)(ibot + prev);
 
         if ((au & 0xffc003e0) == 0xa98003e0) return prev;
 
         while (where > start) {
           where -= 0x4;
 
-          au = *(uint32_t *)(buf + where);
+          au = *(uint32_t *)(ibot + where);
 
           if ((au & 0xffc003ff) == 0xd10003ff && ((au >> 10) & 0xfff) == delta + 0x10)
             return where;
@@ -52,362 +115,232 @@ uint64_t bof64(const void *buf, uint64_t start, uint64_t where) {
   return 0;
 }
 
-void *find_insn_before_ptr(void *ptr, uint32_t search, int size) {
-  int ct = 0;
-
-  while (size) {
-    uint32_t insn = *(uint32_t *)(ptr - ct);
-
-    if (insn == search) return (ptr - ct + 0x4);
-
-    size -= 0x4;
-    ct += 0x4;
-  }
-
-  return NULL;
-}
-
-void *memdata(uint64_t data, int data_size, void *last_ptr) {
-  int loc = length - (ibot - last_ptr);
- 
-  void *ptr = (void *)memmem(last_ptr + 0x4, loc - 0x4, (const char *)&data, data_size);
-  
-  if (ptr) return ptr;
- 
-  return NULL;
-}
-
 bool detect_pac(void) {
-  void *pac_search = memdata(bswap32(0x7f2303d5), 0x4, ibot);
+  const uint8_t pac_insn[] = { 0x7f, 0x23, 0x03, 0xd5 };
 
-  if (pac_search) return true;
+  void *pac_search = memmem(ibot, length, pac_insn, 0x4);
+
+  if (pac_search) return (paced = true);
   
-  return false;
+  return (paced = false);
 }
- 
-uint64_t locate_func(uint32_t insn, uint32_t _insn, bool x, char *func) {
-  uint64_t beg = 0, loc = 0;
 
-  void *first_occur = ibot;
-  
-  while (first_occur > 0) {
-    first_occur = memdata(bswap32(insn), 0x4, first_occur);
-    
-    if (first_occur && find_insn_before_ptr(first_occur, bswap32(_insn), 0x200)) {
-      loc = (uint64_t)((uintptr_t)first_occur - (uintptr_t)ibot);
- 
-      if (x == 0) beg = bof64(ibot, 0x0, loc); // Functions with prologues
+uint64_t find_b_l_insn(uint64_t xref, int x, int ins) {
+  for (int i = 0; i < x; i++) {
+    xref += 0x4;
 
-      if (detect_pac() == true) beg -= 0x4;
- 
-      printf("[%s]: %s = 0x%llx\n", __func__, func, (base + (x ? loc : beg)));
- 
-      return beg;
+    if (ins == 1) {
+      while (*(uint32_t *)(ibot + xref) >> 0x1a != 0x25) xref += 0x4;
+      // BL instructions (jumps into another subroutine and returns the result in the LR register)
+    } else {
+      while ((*(uint32_t *)(ibot + xref) >> 0x1a) % (1 << (0x1f - 0x1a + 1)) != 0x5) xref += 0x4;
+      // B instructions (jumps into another subroutine and never come back | returns nothing)
     }
   }
- 
-  return 0;
+
+  return xref;
 }
 
-/* iOS 7 | iOS 8 | iOS 9 | iOS 13 ~ 14 | iOS 10 to 12 */
-#define insn_set(x, vers1, vers2, vers3, vers4, vers5) \
-if      (version == 1940) x = vers1; \
-else if (version == 2261) x = vers2; \
-else if (version == 2817) x = vers3; \
-else if (version >= 5540) x = vers4; \
-else                      x = vers5;
-
-// https://armconverter.com/ (If you ever try to translate every offsets here, I will give you a cola).
-
-void find_image(void) {
-  locate_func(hex_set(4076, hex_set(3406, 0x89e68c72, 0xc0008072), 0x6000a872), 
-    hex_set(4076, hex_set(3406, 0x080c40b9, 0x6000a852), 0xc0008052), false, "_image_load");
-
-  locate_func(0x09090253,
-    hex_set(2817, 0x010a80d2, hex_set(4076, 0x020a8052, 0xe803002a)), false, "_image4_load");
-
-  locate_func(0x6082813c, hex_set(2817, 0x61220591, 0xc0c20091), false, "_Img4DecodeInit");
-
-  locate_func(hex_set(4013, hex_set(3406, 0xe20318aa, 0x48af8d72), 0x6000a872), 
-    hex_set(4013, hex_set(3406, 0x810240f9, 0x010b40b9), 0x80018052), false, "_image_load_file");
-
-  insn_set(insn, 
-    0x2a5d1053, 0x0a5d1053, 0x0a5d1053, 
-    hex_set(6603, 0x2b5d1053, 0x09294429), 0x2b5d1053);
-  locate_func(0xe00313aa, insn, false, "_image4_dump_list");
-
-  locate_func(hex_set(5540, 0x1f000871, 0x03408052),
-    hex_set(5540, 0x00013fd6, 0x01088052), false, "_image_search_bdev");
-
-  locate_func(hex_set(3406, 0xe20307aa, 0xf40307aa),
-    hex_set(3406, 0xf30306aa, 0xfd030191), false, "_image_load_memory");
-
-  locate_func(hex_set(3406, 0x0100e4d2, 0xf5030091), 0xf30302aa, false, "_image4_get_partial");
-
-  locate_func(0x8082c93c, 0xe00314aa, false, "_Img4DecodeGetPayload");
-
-  locate_func(hex_set(3406, 0x08cc0129, 0x084c0129),
-    hex_set(4076, 0x48af8d72, 0xa8aca972), false, "_image_create_from_memory");
-
-  insn_set(insn,
-    0x0841298b, 0x6931899a, 0x6931899a, 0x6832881a, 0x20013fd6);
-  insn_set(_insn,
-    0xea279f1a, 0x2b0840b9, 0x2b0840b9, 0x7f7a00f1, 0xc91640f9);
-  locate_func(insn, _insn, false, "_image4_process_superblock");
-
-  locate_func(0xe30313aa, hex_set(2817, hex_set(2261, 0xe822c89a, 0x6823c99a), 0xe822c99a), 0,
-    "_Img4DecodeEvaluateDictionaryProperties");
-
-  locate_func(0x1f0500f1, 0x210843b2, false, "_Img4DecodeGetPropertyBoolean");
-
-  locate_func(0x1f1100f1, 0x210843b2, false, "_Img4DecodeGetPropertyData");
-
-  locate_func(hex_set(3406, 0x29000039, 0x28000039),
-    hex_set(3406, 0x090c40f9, 0x080d40f9), true, "_Img4DecodeManifestExists");
+uint64_t follow_call64(uint64_t call) {
+  long long w;
+  w = *(uint32_t *)(ibot + call) & 0x3ffffff;
+  w <<= 0x40 - 0x1a;
+  w >>= 0x40 - 0x1a - 0x2;
+  return call + w;
 }
 
-void find_libc(void) {
-  insn_set(insn,
-    0x2a3140a9, 0x2a3140a9, 0xb81a088b, 0x29195a8b, 0x2a0908cb);
-  locate_func(hex_set(2817, 0x4ae57a92, 0x2a0540b3), insn, false, "_memalign");
-
-  locate_func(0xbfae0071, 0xf60302aa, false, "_strtoull");
-
-  locate_func(hex_set(2817, 0x0a1d0012, 0x091d0012), 0x28004039, true, "_strncmp");
-
-  locate_func(0x0809C19a, 0x08008012, true, "_calloc");
-
-  locate_func(0x1f01216b, 0x08004039, true, "_strchr");
-
-  locate_func(hex_set(3406, 0x29054039, 0x000500d1),
-    hex_set(3406, 0x0901008b, 0x09686838), true, "_strlen");
-  
-  if (version >= 2817) locate_func(0x8c050091, 0x8d014039, true, "_strsep");
-
-  insn_set(insn, 
-    0x09fd46d3, 0x09fd46d3, 0x6be57ad3, 0xc81240f9, 0xc81240f9);
-  insn_set(_insn, 
-    0xf30300aa, 0xf30300aa, 0xab1240f9, 0xff7e00f1, 0xe00314aa);
-  locate_func(insn, _insn, false, "_malloc");
-
-  /* [NOTE]: _bcopy is translated to _memcpy (or _memmove). */
-  locate_func(0x420400f1, 0x422000b1, false, "_memcpy");
-
-  locate_func(0x217c039b, 0x211c4092, false, "_memset");
-
-  locate_func(0x6300028b, 0x23740bd5, false, "_bzero");
-
-  locate_func(hex_set(2817, 0x6be57a92, 0x29e57a92), hex_set(2817, 0x49e57ad3, 0x28e57ad3), false, "_free");
-}
-
-// This one is kind of hard...
-void find_platform(void) {
-  locate_func(hex_set(5540, hex_set(4513, 0x005d1053, 0x94120011), 0x287b75b8),
-    hex_set(5540, hex_set(4513, 0x48c0a1f2, 0x605a36b8), 0xbf0a00f1), false, "_platform_update_device_tree");
-
-  locate_func(hex_set(5540, 0x2879a8b8, 0x307ab0b8), 0xe00313aa, false, "_platform_quiesce_hardware");
-
-  insn_set(insn,
-    0x2011881a, 0x0011931a, 0x0011931a, 0x08011c12, 0x68021d32);
-  insn_set(_insn,
-    0x09011c32, 0x68021c32, 0x68021c32, 0x087c44d3, 0x1315881a);
-  locate_func(insn, _insn, false, "_platform_get_iboot_flags");
-
-  locate_func(hex_set(4513, hex_set(2817, 0x002d0c53, 0x007d1c53), 0x097d55d3), 
-    hex_set(4513, 0x48c0a1f2, 0x082540b9), false, "_platform_get_memory_size"); // iOS 9 to 12 : the function is below.
-
-  locate_func(hex_set(2817, 0xe17f40b2, 0x01008012),
-    hex_set(5540, hex_set(3406, 0x680a0039, 0x68060039), 0x28008052), false, "_platform_init_display");
-
-  locate_func(0x60024039, 0xe10313aa, false, "_platform_early_init");
-
-  insn_set(insn,
-    0x49c0a1f2, 0x08fc60d3, 0x53c0a1f2, 0x5300c0f2, 0x680240b9);
-  locate_func(0x29011f32, insn, false, "_platform_get_nonce");
-
-  locate_func(0x01190012, 0xe00313aa, false, "_platform_bootprep");
-
-  locate_func(0x13041f33, 0x2800002a, false, "_platform_disable_keys");
-}
-
-void find_load(void) {
-  insn_set(insn,
-    0x0880a0f2, 0x0880a0f2, 0x0800a2f2, 0x0101c0f2, hex_set(4076, 0x1500a2f2, 0x1501c0f2));
-  locate_func(insn, hex_set(2817, 0xf40300aa, 0xf40302aa), false, "_load_kernelcache_file");
-
-  locate_func(hex_set(3406, 0x087d4093, 0xbfd20039), hex_set(4076, 0x086d1c53, 0x08ed7cd3), false, "_load_bank_partitions");
-
-  insn_set(insn,
-    0x0880a0f2, 0x0880a0f2, 0x0800a2f2, 0x0201c0f2, hex_set(4076, 0x1500a2f2, 0x1501c0f2));
-  locate_func(hex_set(5540, hex_set(3406, 0x060080d2, 0x070080d2), 0x40008012), insn, false, "_load_kernelcache");
-
-  insn_set(insn,
-    0x010140f9, 0x010140f9, 0x010140f9, 0xc100a052, hex_set(4076, 0x00e08472, 0x0040a072));
-  insn_set(_insn,
-    0xfd030091, 0xfd430091, 0xe10313aa, 0x0040a072, 0x02008052);
-  locate_func(insn, _insn, false, "_load_fs_firmware");
-
-  locate_func(0x1f080872, 0x08000432, false, "_load_sepos"); // iOS 12+
-}
-
-void find_usb(void) {
-  insn_set(insn,
-    0x600a00f9, 0x600a00f9, 0x600600f9, 0x800200f9, 0x800600f9);
-  locate_func(hex_set(3406, 0x60820091,
-    hex_set(5540, 0x80a20091, 0x00008252)), insn, false, "_usb_serial_early_init");
-
-  insn_set(insn, 
-    0x900d40f9, 0x900d40f9, 0x4b711d53, 0x4b711d53, 0x4b711d53);
-  locate_func(insn, hex_set(2817, 0x8c3140f9, 0x6a2140b9), false, "_usb_core_start");
-
-  insn_set(insn, 
-    0xa0c20191, 0xa0c20191, 0x881a40f9, 0x6100a052, 0xa01e40f9);
-  locate_func(0x020080d2, insn, false, "_usb_core_init");
-}
-
-void find_der(void) {
-  locate_func(0x00008012, hex_set(3406, 0x090940b9, 0x080440f9), false, "_DERImg4DecodeTagCompare");
-
-  locate_func(hex_set(4076, 0x090280f2, 0x0900e4f2), 0xf60301aa, false, "_DERParseSequence");
-
-  locate_func(hex_set(4513, 0xe003881a, 0x00791f53), 0xe30313aa, false, "_DERImg4Decode");
-
-  locate_func(0x09fd60d3, 0xf30301aa, false, "_DERParseInteger");
-
-  locate_func(0x28000039,
-    hex_set(3406, hex_set(2261, 0x1ffd0371, 0x291d0012), 0x0419407a), true, "_DERParseBoolean");
-
-  locate_func(0x08014039, 0x5f000039, true, "_DERParseBitString");
-
-  locate_func(0x680600f9, hex_set(5540, hex_set(2261, 0x09fe9ff2, 0x08fd41d3), 0x0900e2f2), false, "_DERDecodeSeqInit");
-
-  locate_func(hex_set(2817, 0x891240b9, 0x680200f9), hex_set(4513, 0x682640a9, 0x082440a9), false, "_DERDecodeSeqNext");
-
-  locate_func(hex_set(4076, hex_set(3406, 0x018a8672, 0xa1898672), 0x418a8652), 0xe30313aa, false, "_DERImg4DecodePayload");
-
-  locate_func(hex_set(4076, 0x418a8672, 0xa129a972), hex_set(3406, 0x080840b9, 0x080440f9), false, "_DERImg4DecodeRestoreInfo");
-
-  locate_func(0x6002803d, 0x1f0114eb, false, "_DERImg4DecodeFindInSequence");
-}
-
-void find_sep(void) {
-  locate_func(hex_set(5540, 0x2902a072, 0x2802a072), 0xf30300aa, false, "_sep_client_set_antireplay_size"); // A11+
-
-  locate_func(hex_set(5540, 0x1a02a072, 0x1902a072),
-    hex_set(5540, 0xe0031f32, 0xf91f8052), false, "_sep_client_get_random_data"); // A10+
-
-  locate_func(hex_set(4076, 0xe80c8052, 0xfadf8d52), 
-    hex_set(2817, 0xe0031f32, 0xf30300aa), false, "__sep_client_get_nonce");
-}
-
-void *find_funcs(int extra) {
-  insn_set(insn,
-    0xe20313aa, 0xe20313aa, 0xe20313aa, 0x140500b9, hex_set(4513, 0x29010032, 0x140500b9));
-  insn_set(_insn,
-    0xc06640b9, 0xc06640b9, 0xc06640b9, 0x880090d2, hex_set(4513, 0x29010032, 0x140500b9));
-  locate_func(insn, _insn, false, "_uart_init");
-
-  find_image();
-
-  find_sep();
-
-  find_platform();
-
-  find_der();
-
-  find_load();
-
-  find_usb();
-
-  if (extra) {
-    locate_func(0x08054039, 0x04148052, false, "_parse_chain");
-
-    locate_func(0x163d0012, 0x084c40f9, false, "_parse_extensions"); // iOS 10+
-
-    locate_func(0x09fc1f38, 0x290c4092, true, "_decode_ascii");
-
-    locate_func(hex_set(5540, 0x08008092, 0x097d00a9),
-      hex_set(5540, 0x0801092a, 0x09008092), false, "_security_init");
-
-    locate_func(hex_set(2817, 0x0001090a, 0x4001080a), 0xe8879f1a, true, "_security_allow_memory");
-
-    locate_func(hex_set(5540, 0x09fd00a9, 0x0800018b),
-      hex_set(5540, 0x09008092, 0x097d00a9), true, "_security_protect_memory");
-
-    locate_func(hex_set(4513, hex_set(2817, 0xb482969a, 0xd582939a), 0x7502969a),
-      hex_set(4513, hex_set(2817, 0xdf0215eb, 0x7f0216eb), 0x68fe5cd3), false, "_security_clear_memory_in_chunks");
-
-    locate_func(hex_set(5540, 0x0000080a, 0x0000098a),
-      0x68020052, true, "_security_get_effective_production_status");
-
-    locate_func(  0x1fc100f1, hex_set(3406, 0xa81240f9, 0x681240f9), false, "_verify_chain_signatures"); // iOS 9+
-
-    locate_func(0x015238d5, 0xbf4000d5, true, "_exception_vector_base");
-
-    locate_func(0xdf3f03d5, 0x00e21bd5, true, "_write_phys_timer_ctl");
-
-    locate_func(hex_set(3406, hex_set(2817, 0x4a050011, 0x68050011), 0x092c00b9),
-      hex_set(3406, hex_set(2817, 0x5fa10f71, 0x7fa10f71), 0x09050011), false, "_enter_critical_section");
-
-    locate_func(hex_set(3406, 0x4a050051, 0x082c00b9),
-      hex_set(3406, hex_set(2817, 0x090140f9, 0x5f010071), 0x1f010071), false, "_exit_critical_section");
-
-    locate_func(hex_set(3406, hex_set(2817, 0x29910111, 0x48910111), 0x082c00b9),
-      hex_set(3406, hex_set(2817, 0x3fa10f71, 0x5fa10f71), 0x08910111), false, "_irq_enter_critical_section");
-
-    locate_func(0x20e23bd5, 0xdf3f03f5, true, "_read_counter_phys_ctl_reg_el0");
-
-    locate_func(0xdf3f03f5, 0x20e23bd5, true, "_write_counter_phys_ctl_reg_el0");
-
-    locate_func(hex_set(2817, 0x090100b9, 0x080140f9), hex_set(2817, 0x1f510071, 0xc81040f9), false, "_verify_signature_rsa");
-
-    locate_func(0xdf3f03d5, 0x20e21bd5, true, "_write_cntp_ctl_el0");
-
-    locate_func(0x20e23bd5, 0xdf3f03d5, true, "_read_cntp_ctl_el0");
-
-    locate_func(0xc0035fd6, 0x401018d5, true, "_write_cpacr_el1");
-
-    locate_func(0xc0035fd6, 0x401038d5, true, "_read_cpacr_el1");
-
-    if (version >= 3406) {
-      locate_func(0xc0035fd6, 0x001038d5, true, "_read_sctlr_el1");
-
-      locate_func(0xc0035fd6, 0x00a218d5, true, "_write_mair_el1");
-
-      locate_func(0xc0035fd6, 0x402018d5, true, "_write_tcr_el1");
-    } // use iBootPatcher and remove the condition.
-
-    locate_func(hex_set(3406, 0x170080d2, 0x3f810071),
-      hex_set(3406, 0xea079f1a, 0xe8024039), false, "_contains_boot_arg");
-
-    if (version < 6603) locate_func(0xff830091, 0x0800088b, false, "_alloc_kernel_mem"); // iOS 10+
-    
-    insn_set(insn,
-      0x60023fd6, 0xa0023fd6, 0x80023fd6, 0xe00315aa, 0x80023fd6);
-    locate_func(insn, hex_set(5540, 0x03008052, 0x010000d4), false, "_prepare_and_jump");
-
-    locate_func(0x63040091, 0x01014079, false, "_verify_pkcs1_sig");
-
-    locate_func(0x9f3f03d5, 0x1f7508d5, true, "__invalidate_cache_pou");
-
-    locate_func(0xe0039f5a, 0xe30316aa, false, "_aes_crypto_cmd");
-
-    locate_func(0x9f3f03d5, hex_set(3406, 0x00101ed5, 0x001018d5), true, "_arm_write_sctlr");
-
-    locate_func(hex_set(6603, 0x00815fb8, 0x14815fb8), 0xf30302aa, false, "_boot_object");
-
-    locate_func(0x9f3f03d5, hex_set(3406, 0x1f870ed5, 0x1f8708d5), true, "_reload_cache"); // iBootPatcher
+// find_xref(insn or not, string, function name, how many BL to count, usage of bof64, finding a bl or b insn);
+uint64_t find_xref(uint64_t xref, char *str, char *name, int count, bool beg, char *bx) {
+  if (xref <= 0) {
+    void *bl = memmem(ibot, length, str, strlen(str));
+
+    /*if (bl == NULL) {
+      printf("[%s]: %s = NULL\n", __func__, name);
+      return -1;
+    }*/
+
+    xref = xref64(0x0, bl - ibot);
+
+    /*if (xref == 0) {
+      printf("[%s]: %s = NULL\n", __func__, name);
+      return -1;
+    }*/
   }
 
-  insn_set(insn,
-    0x480100f9, 0x880300f9, 0x0801138b, 0x3f0100f1, 0x0801138b);
-  locate_func(hex_set(5540, 0x010080d2, 0xd602889a), insn, false, "_macho_load");
+  if (beg == true) insn = bof64(0x0, xref);
 
-  locate_func(0xdf4303d5, 0x22423bd5, true, "_mmu_kvtop");
+  if (count > 0) {
+    insn = (!strcmp(bx, "bl")) ? find_b_l_insn(xref, count, 1) : find_b_l_insn(xref, count, 0);
 
-  find_libc();
+    if (!insn) {
+      printf("[%s]: %s = NULL\n", __func__, name);
+      return -1;
+    }
 
-  locate_func(hex_set(4076, 0x20018052, 0x3f0d0071), hex_set(4076, 0x08050011, 0x29050011), false, "_panic");
+    insn = follow_call64(insn);
+  }
+
+  if (_print == 0) printf("[%s]: %s = 0x%llx\n", __func__, name, insn + base);
+
+  _print = 0;
+
+  return insn;
+}
+
+int insn_set(uint32_t v12, uint32_t v13, uint32_t v14, uint32_t vX) {
+  if (version == 4513) return (insn = v12);
+  else if (version == 5540) return (insn = v13);
+  else if (version >= 6603) return (insn = v14);
+  else return (insn = vX);
+}
+
+void *find_func(void) {
+  uint64_t img4_load = 0;
+
+  find_xref(0x0, hex_set(5540, "Attempting to", "darwinos-ramdisk"), "_do_bootx", 0x0, true, NULL);
+  find_xref(0x0, "debug-uarts",                "_main_task", 0x0, true, NULL);
+  find_xref(0x0, "Combo image too",            "_do_memboot", 0x0, true, NULL);
+  uint64_t use = find_xref(0x0, "mem",         "_boot_darwin", 0x8, false, "bl");
+  find_xref(0x0, "usb req",                    "_event_init", 0x3, false, "bl");
+  uint64_t less = find_xref(0x0, "main",       "_task_start", 0x2, false, "bl");
+  find_xref(0x0, "main",                       "_task_create", 0x1, false, "bl");
+  find_xref(0x0, "boot-device",                "_mount_bootfs", 0x0, true, NULL);
+  find_xref(0x0, "<null>",                     "_decode_ascii", 0x1, false, "bl");
+  uint64_t var = find_xref(0x0, "backlight-level", "_env_get_uint", 0x1, false, "bl");
+  find_xref(0x0, "upgrade-retry",              "_env_get_bool", 0x1, false, "bl");
+  find_xref(0x0, "BootArgs",                   "_record_memory_range", 0x1, false, "bl");
+  find_xref(0x0, "mem",                        "_create_mem_blockdev", 0x1, false, "bl");
+  find_xref(0x0, "boot-path",                  "_mount_and_boot_system", 0x0, true, NULL);
+
+  find_xref(less, NULL,                        "_enter_critical_section", 0x1, false, "bl");
+  find_xref(less, NULL,                        "_exit_critical_section", hex_set(5540, 0x1, 0x2), false, "b");
+
+  find_xref(0x0, "BootArgs",                   "_alloc_kernel_mem", 0x5, false, "bl");
+  var = find_xref(var, NULL,                   "_read_nvram_check", 0x1, false, "bl");
+
+  uint64_t usb = find_xref(0x0, "Apple Mobile Device (Recovery Mode)", "_usb_core_init", 0x1, false, "bl");
+  find_xref(0x0, "Apple Mobile Device (Recovery Mode)", "_usb_core_start", 0x4, false, "bl");
+  find_xref(usb, NULL,                         "_usb_create_string_descriptor", 0x7, false, "bl");
+  
+  var = find_xref(var, NULL,                   "_check_data_at_heap_const", 0x1, false, "bl");
+  find_xref(0x0, "pram",                       "_dt_find_node_with_name", 0x1, false, "bl");
+  find_xref(0x0, "boot-device",                "_verify_heap_checksum", 0x5, false, "bl");
+  find_xref(0x0, "diags-path",                 "_boot_diagnostics_fs", 0x0, true, NULL);
+  find_xref(0x0, "debug=",                     "_contains_boot_arg", 0x1, false, "bl");
+  uint64_t name = find_xref(0x0, "/boot/iBEC", "_prepare_and_jump", hex_set(5540, 0x4, 0x5), false, "bl");
+  find_xref(0x0, "debug-enabled",              "_UpdateDeviceTree", 0x0, true, NULL);
+  find_xref(0x0, "Memory image not valid",     "_boot_object", 0x4, false, "bl");
+
+  find_xref(name, NULL,                        "_platform_bootprep", hex_set(5540, 0x3, 0x6), false, "bl");
+  less = find_xref(0x0, "effective-security",  "_platform_get_nonce", hex_set(5540, 0x4, 0x5), false, "bl");
+  find_xref(less, NULL,                        "_platform_read_nonce", 0x1, false, "bl");
+
+  if (version < 6603) find_xref(0x0, "backlight-level", "_platform_init_display", 0x0, true, NULL);
+
+  find_xref(name, NULL,                        "_platform_quiesce_hardware", hex_set(5540, 0x4, 0x7), false, "bl");
+  var = find_xref(0x0, hex_set(5540, "CPID:", "SDOM:"), "_platform_get_usb_serial_number_string", 0x0, true, NULL);
+
+  _print = 1;  // for some reasons find_xref() did not worked properly here so here it will stay.
+  uint64_t ref_b = find_xref(var, NULL,        "_useless_function", hex_set(5540, 0x1, 0x2), false, "bl");
+  printf("[%s]: %s = 0x%llx\n", __func__,      "_platform_get_chip_id", follow_call64(ref_b) + base);
+  
+  _print = 1; // In fact I knew why but the code would be more ugly than it currently is, so here it will stay.
+  ref_b = find_xref(var, NULL,                 "_useless_function", hex_set(5540, 0x2, 0x3), false, "bl");
+  printf("[%s]: %s = 0x%llx\n", __func__,      "_platform_get_chip_revision", follow_call64(ref_b) + base);
+
+  find_xref(var, NULL,                         "_platform_get_fuse_modes", hex_set(5540, 0x3, 0x4), false, "bl");
+  find_xref(var, NULL,                         "_platform_get_security_epoch", hex_set(5540, 0x4, 0x5), false, "bl");
+  find_xref(var, NULL,                         "_platform_get_board_id", hex_set(5540, 0x5, 0x6), false, "bl");
+  find_xref(var, NULL,                         "_platform_get_ecid_id", hex_set(5540, 0x6, 0x7), false, "bl");
+  var = find_xref(var, NULL,                   "_platform_get_iboot_flags", hex_set(5540, 0x7, 0x8), false, "bl");
+  find_xref(var, NULL,                         "_platform_get_secure_mode", 0x2, false, "bl");
+  find_xref(var, NULL,                         "_platform_get_current_production_mode", 0x3, false, "bl");
+  var = find_xref(0x0, " NONC:",               "_platform_get_usb_more_other_string", 0x0, true, NULL);
+  find_xref(usb, NULL,                         "_platform_get_usb_vendor_id", 0x3, false, "bl");
+  less = find_xref(usb, NULL,                  "_platform_get_usb_product_id", 0x4, false, "bl");
+  find_xref(less, NULL,                        "_platform_get_security_domain", 0x2, false, "bl");
+  find_xref(usb, NULL,                         "_platform_get_usb_device_version", 0x5, false, "bl");
+  find_xref(usb, NULL,                         "_platform_get_usb_manufacturer_string", 0x6, false, "bl");
+  find_xref(usb, NULL,                         "_platform_get_usb_product_string", 0x8, false, "bl");
+  find_xref(var, NULL,                         "_platform_get_sep_nonce", 0x6, false, "bl");
+
+  find_xref(0x0, "Kernelcache too large",      "_load_kernelcache_object", 0x0, true, NULL);
+  less = find_xref(0x0, "/boot/kernelcache",   "_load_kernelcache_file", 0x1, false, "bl");
+  find_xref(0x0, "boot-path",                  "_load_ramdisk_file", 0x8, false, "bl");
+  find_xref(0x0, "Kernel-",                    "_load_kernelcache", 0x0, true, NULL);
+  find_xref(0x0, "mem",                        "_load_ramdisk", 0x5, false, "bl");
+
+  insn_set(0x1, 0x1, (detect_pac() ? 0x3 : 0x2), 0x1);
+  use = find_xref(0x0, "Kernelcache too large", "_image_load_memory", insn, false, "bl");
+
+  name = find_xref(use, NULL,                  "_image_create_from_memory", hex_set(6603, 0x1, 0x2), false, "bl");
+
+  find_xref(0x0, "IMG4",                       "_image4_get_partial", 0x0, true, NULL);
+  find_xref(0x0, "mem",                        "_image_search_bdev", 0x2, false, "bl");
+  find_xref(0x0, "image %",                    "_image4_dump_list", 0x0, true, NULL);
+  find_xref(0x0, "mem",                        "_image_dump_list", 0x3, false, "bl");
+
+  insn_set(0x1, 0x2, (paced ? 0x4 : 0x2), 0x1);
+  uint64_t last = find_xref(less, NULL,        "_image_load_file", insn, false, "bl");
+
+  if (version == 5540) {
+    _print = 1; // I hate to have to do that kind of bad trick...
+    img4_load = find_xref(use, NULL, "_useless_function", 0x2, false, "bl");
+  }
+
+  insn_set(0x2, 0x1, (paced ? 0x7 : 0x3), 0x2);
+
+  img4_load = find_xref((version == 5540 ? img4_load : use), NULL, "_image_load", insn, false, (version == 5540 ? "b" : "bl"));
+
+  insn_set(0x8, 0x10, (paced ? 0x16 : 0xC), 0x8);
+  img4_load = find_xref(img4_load, NULL,       "_image4_load", hex_set(4076, 0xA, insn), false, "bl");
+
+  find_xref(use, NULL,                         "_image_free", 0x3, false, "bl");
+  find_xref(0x0, "mem",                        "_image_find", 0x6, false, "bl");
+  use = find_xref(0x0, "mem",                  "_image_search_bdev", 0x2, false, "bl");
+  find_xref(use, NULL,                         "_image_process_superblock", hex_set(5540, 0x2, 0x3), false, "bl");
+
+  insn_set(0x16, 0x1f, (paced ? 0x31 : 0x1e), 0x12);
+  use = find_xref(img4_load, NULL,             "_Img4DecodeInit", hex_set(4076, 0x15, insn), false, "bl");
+
+  find_xref(img4_load, NULL,                   "_Img4DecodeGetPayload", insn_set(0x21, 0x21, 0x2a, 0x1f), false, "bl");
+
+  find_xref(img4_load, NULL,                   "_Img4DecodeManifestExists", insn_set(0x18, 0x18, 0x21, 0x17), false, "bl");
+  find_xref(use, NULL,                         "_DERImg4Decode", hex_set(5540, 0x2, 0x1), false, "bl");
+  find_xref(use, NULL,                         "_DERImg4DecodePayload", hex_set(5540, 0x3, 0x2), false, "bl");
+  find_xref(use, NULL,                         "_DERImg4DecodeManifest", hex_set(5540, 0x4, 0x3), false, "bl");
+  use = find_xref(use, NULL,                   "_DERImg4DecodeRestoreInfo", hex_set(5540, 0x5, 0x4), false, "bl");
+  find_xref(use, NULL,                         "_DERImg4DecodeTagCompare", 0x2, false, "bl");
+  use = find_xref(use, NULL,                   "_DERParseSequence", 0x1, false, "bl");
+  find_xref(use, NULL,                         "_DERDecodeItemPartialBufferGetLength", 0x1, false, "bl");
+  find_xref(use, NULL,                         "_DERParseSequenceContent", 0x2, false, "bl");
+
+  find_xref(last, NULL,                        "_fs_load_file", 0x1, false, "bl");
+  find_xref(var, NULL,                         "_hash_calculate", hex_set(5540, 0x2, 0x3), false, "bl");
+
+  less = find_xref(0x0, (version >= 6603 ? "idleoff" : "BootArgs"), "_security_init", insn_set(0x12, 0x18, 0xD, 0x16), false, "bl");
+
+  find_xref(0x0, "debug-enabled",              "_security_allow_modes", 0x2, false, "bl");
+  find_xref(0x0, "Combo image too large",      "_security_allow_memory", 0x1, false, "bl");
+  find_xref(less, NULL,                        "_security_protect_memory", hex_set(4513, 0x6, 0x7), false, "bl");
+  find_xref(less, NULL,                        "_security_clear_memory_in_chunks", hex_set(5540, 0x5, 0xA), false, "bl");
+
+  find_xref(0x0, "<ptr>",                      "_do_printf", 0x0, true, NULL);
+  find_xref(0x0, "Kernel-",                    "_snprintf", 0x2, false, "bl");
+  find_xref(usb, NULL,                         "_memalign", 0xE, false, "bl");
+  find_xref(0x0, " SRNM:",                     "_strlcpy", 0x1, false, "bl");
+  find_xref(0x0, " SRNM:",                     "_strlcat", 0x3, false, "bl");
+  find_xref(usb, NULL,                         "_memset", 0xf, false, "bl");
+  find_xref(0x0, "macaddr/",                   "_memcmp", 0x1, false, "bl");
+  find_xref(0x0, "network-type",               "_strcmp", 0x2, false, "bl");
+  find_xref(0x0, "zeroes/",                    "_strsep", 0x3, false, "bl");
+  find_xref(0x0, "zeroes/",                    "_strlen", 0x4, false, "bl");
+  find_xref(name, NULL,                        "_malloc", 0x1, false, "bl");
+  find_xref(0x0, "effective-security",         "_memcpy", hex_set(5540, 0x5, 0x7), false, "bl");
+  find_xref(0x0, "Entering recovery mode",     "_printf", 0x1, false, "bl");
+  last = find_xref(0x0, "image-version",       "_free", 0x2, false, "bl");
+  find_xref(last, NULL,                        "_bzero", 0x5, false, "bl");
+  find_xref(0x0, hex_set(6603, "double panic in ", "iBoot Panic"), "_panic", 0x0, true, NULL);
 
   return ibot;
 }
@@ -415,32 +348,19 @@ void *find_funcs(int extra) {
 void usage(char *owo[]) {
   char *ibot = NULL;
   ibot = strrchr(owo[0], '/');
-  printf("usage: %s [-f] <iboot> [-e]\n", (ibot ? ibot + 1 : owo[0]));
-  printf("\t-f, --find\tfind functions of a decrypted iBoot64.\n");
-  printf("\t-e, --extra\ttry to find more iBoot functions.\n");
+  printf("usage: %s [-f] <iboot>\n", ibot ? ibot + 1 : owo[0]);
+  printf("\t-f, --find\tfind some functions of a decrypted iBoot64.\n");
 }
 
 int main(int argc, char *argv[]) {
+  int find = 0;
   FILE *fd = NULL;
-
-  int find = 0, extra = 0;
 
   if (argc < 3) goto usagend;
 
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "-f") || !strcmp(argv[i], "--find")) {
       find = 1;
-
-      if (argv[i+2] != NULL) {
-        if (!strcmp(argv[i+2], "-e") || !strcmp(argv[i+2], "--extra")) {
-          extra = 1;
-          break;
-        } else {
-          printf("warning: unrecognized argument: %s\n", argv[i+2]);
-          goto usagend;
-        }
-      }
-
       break;
     } else {
       printf("warning: unrecognized argument: %s\n", argv[i]);
@@ -481,19 +401,24 @@ int main(int argc, char *argv[]) {
       goto end;
     }
 
+    if (detect_pac() == true) {
+      printf("[%s]: PACed iBoot detected!\n", __func__);
+    }
+
     printf("[%s]: detected iBoot-%s!\n", __func__, ibot + 0x286);
 
     version = atoi(ibot + 0x286);
+
+    if (version <= 2817) {
+      printf("[%s]: iBoot64Finder support for now iOS 10 to iOS 14.\n", __func__);
+      goto end;
+    }
 
     base = *(uint64_t *)(ibot + hex_set(6603, 0x318, 0x300));
 
     printf("[%s]: base_addr = 0x%llx\n", __func__, base);
 
-    if (detect_pac() == true) {
-      printf("[%s]: PACed bootloader detected!\n", __func__);
-    }
-
-    if (!find_funcs(extra)) return -1;
+    if (!find_func()) return -1;
 
     printf("[%s]: done!\n", __func__);
 

@@ -4,15 +4,14 @@ iBoot64Finder
 
 I. Requierements
 	1. macOS/Linux,
-	2. decrypted 64bit iBoot,
-	3. basic compilation tools.
+	2. basic compilation tools,
+	3. decrypted 64bit iBoot (iOS 10 - 14).
 
 II. Usage
-	$ iBoot64Finder [--find] <iBoot> [--extra]
+	$ iBoot64Finder [--find] <iBoot>
 	   -f, --find	find functions of a decrypted iBoot64.
-	   -e, --extra	try to find more iBoot functions.
 
-	$ iBoot64Finder -f iBoot.j273a.RELEASE.bin -e
+	$ iBoot64Finder -f iBoot.d321.RELEASE.bin
 
 III. Features
 	> Some plugins were made to import all functions found in a reversing tool :
@@ -21,5 +20,8 @@ III. Features
 	Binja   : https://github.com/matteyeux/iBoot64Finder-importer
 
 IV. Notes
-	> I highly advise to use this tool on the lastest versions (iOS 7.1.x | 12.4.x | ...),
+	> Please let me know if you notice any bugs or bad found addresses !!
+
 	> This project was made for programming skills and knowledges improvement with bootloaders.
+	> This new version is now using an other technique than the previous one : retreiving functions using xrefs,
+	> i64f is now only supporting iOS 10 to 14 because the other versions are becoming very old... however, you can still use the old iBoot64Finder binary in the release for the versions below if you need to.
