@@ -154,20 +154,20 @@ uint64_t find_xref(uint64_t xref, char *str, char *name, int count, bool beg, ch
   if (xref <= 0) {
     void *bl = memmem(ibot, length, str, strlen(str));
 
-    /*if (bl == NULL) {
+    if (bl == NULL) {
       printf("[%s]: %s = NULL\n", __func__, name);
       return -1;
-    }*/
+    }
 
     xref = xref64(0x0, bl - ibot);
 
-    /*if (xref == 0) {
+    if (xref == 0) {
       printf("[%s]: %s = NULL\n", __func__, name);
       return -1;
-    }*/
+    }
   }
 
-  if (beg == true) insn = bof64(0x0, xref);
+  if (beg == true) insn = bof64(0x0, xref) - (paced ? 0x4 : 0x0);
 
   if (count > 0) {
     insn = (!strcmp(bx, "bl")) ? find_b_l_insn(xref, count, 1) : find_b_l_insn(xref, count, 0);
@@ -206,7 +206,7 @@ void *find_func(void) {
   find_xref(0x0, "main",                       "_task_create", 0x1, false, "bl");
   find_xref(0x0, "boot-device",                "_mount_bootfs", 0x0, true, NULL);
   find_xref(0x0, "<null>",                     "_decode_ascii", 0x1, false, "bl");
-  uint64_t var = find_xref(0x0, "backlight-level", "_env_get_uint", 0x1, false, "bl");
+  uint64_t var = find_xref(0x0, "debug-uarts", "_env_get_uint", 0x1, false, "bl");
   find_xref(0x0, "upgrade-retry",              "_env_get_bool", 0x1, false, "bl");
   find_xref(0x0, "BootArgs",                   "_record_memory_range", 0x1, false, "bl");
   find_xref(0x0, "mem",                        "_create_mem_blockdev", 0x1, false, "bl");
@@ -221,8 +221,7 @@ void *find_func(void) {
   uint64_t usb = find_xref(0x0, "Apple Mobile Device (Recovery Mode)", "_usb_core_init", 0x1, false, "bl");
   find_xref(0x0, "Apple Mobile Device (Recovery Mode)", "_usb_core_start", 0x4, false, "bl");
   find_xref(usb, NULL,                         "_usb_create_string_descriptor", 0x7, false, "bl");
-  
-  var = find_xref(var, NULL,                   "_check_data_at_heap_const", 0x1, false, "bl");
+
   find_xref(0x0, "pram",                       "_dt_find_node_with_name", 0x1, false, "bl");
   find_xref(0x0, "boot-device",                "_verify_heap_checksum", 0x5, false, "bl");
   find_xref(0x0, "diags-path",                 "_boot_diagnostics_fs", 0x0, true, NULL);
@@ -326,7 +325,7 @@ void *find_func(void) {
   find_xref(less, NULL,                        "_security_clear_memory_in_chunks", hex_set(5540, 0x5, 0xA), false, "bl");
 
   find_xref(0x0, "<ptr>",                      "_do_printf", 0x0, true, NULL);
-  find_xref(0x0, "Kernel-",                    "_snprintf", 0x2, false, "bl");
+  find_xref(0x0, hex_set(5540, "CPID:", "SDOM:"), "_snprintf", 0x1, false, "bl");
   find_xref(usb, NULL,                         "_memalign", 0xE, false, "bl");
   find_xref(0x0, " SRNM:",                     "_strlcpy", 0x1, false, "bl");
   find_xref(0x0, " SRNM:",                     "_strlcat", 0x3, false, "bl");
