@@ -36,51 +36,55 @@ uint64_t xref64(uint64_t start, uint64_t what) {
 
     if ((op & 0x9f000000) == 0x90000000) {
       signed adr = ((op & 0x60000000) >> 0x12) | ((op & 0xffffe0) << 8);
+
       value[reg] = ((long long) adr << 1) + (i & ~0xfff);
     } else if ((op & 0xff000000) == 0x91000000) {
       unsigned rn = (op >> 0x5) & 0x1f;
-    if (rn == 0x1f) {
-      value[reg] = 0;
-      continue;
+
+      if (rn == 0x1f) {
+        value[reg] = 0;
+        continue;
+      }
+
+      unsigned shift = (op >> 0x16) & 0x3;
+      unsigned imm = (op >> 0xA) & 0xfff;
+
+      if (shift == 1) {
+        imm <<= 0xC;
+      } else {
+        if (shift > 1) continue;
+      }
+
+      value[reg] = value[rn] + imm;
+    } else if ((op & 0xf9C00000) == 0xf9400000) {
+      unsigned rn = (op >> 0x5) & 0x1f;
+      unsigned imm = ((op >> 0xA) & 0xfff) << 0x3;
+
+      if (!imm) continue;
+
+      value[reg] = value[rn] + imm;
+    } else if ((op & 0x9f000000) == 0x10000000) {
+      signed adr = ((op & 0x60000000) >> 0x12) | ((op & 0xffffe0) << 8);
+
+      value[reg] = ((long long)adr >> 0xB) + i;
+    } else if ((op & 0xff000000) == 0x58000000) {
+      unsigned adr = (op & 0xffffe0) >> 3;
+
+      value[reg] = adr + i;
+    } else if ((op & 0xfc000000) == 0x94000000) {
+      signed imm = (op & 0x3ffffff) << 2;
+
+      if (op & 0x2000000) imm |= 0xf << 0x1c;
+
+      unsigned adr = (unsigned)(i + imm);
+
+      if (adr == what) return i;
     }
 
-    unsigned shift = (op >> 0x16) & 0x3;
-    unsigned imm = (op >> 0xA) & 0xfff;
-
-    if (shift == 1) {
-      imm <<= 0xC;
-    } else {
-      if (shift > 1) continue;
-    }
-
-    value[reg] = value[rn] + imm;
-  } else if ((op & 0xf9C00000) == 0xf9400000) {
-    unsigned rn = (op >> 0x5) & 0x1f;
-    unsigned imm = ((op >> 0xA) & 0xfff) << 0x3;
-    if (!imm) continue;
-    value[reg] = value[rn] + imm;
-  } else if ((op & 0x9f000000) == 0x10000000) {
-    signed adr = ((op & 0x60000000) >> 0x12) | ((op & 0xffffe0) << 8);
-    value[reg] = ((long long)adr >> 0xB) + i;
-  } else if ((op & 0xff000000) == 0x58000000) {
-    unsigned adr = (op & 0xffffe0) >> 3;
-    value[reg] = adr + i;
-  } else if ((op & 0xfc000000) == 0x94000000) {
-    // BL addr
-    signed imm = (op & 0x3ffffff) << 2;
-    if (op & 0x2000000) {
-      imm |= 0xf << 0x1c;
-    }
-    unsigned adr = (unsigned)(i + imm);
-    if (adr == what) {
-      return i;
-    }
+    if (value[reg] == what && reg != 0x1f) return i;
   }
 
-  if (value[reg] == what && reg != 0x1f) return i;
-}
-
-return 0;
+  return 0;
 }
 
 uint64_t bof64(uint64_t start, uint64_t where) {
@@ -135,7 +139,7 @@ uint64_t find_b_l_insn(uint64_t xref, int x, int ins) {
       while (*(uint32_t *)(ibot + xref) >> 0x1a != 0x25) xref += 0x4;
       // BL instructions (jumps into another subroutine and returns the result in the LR register)
     } else {
-      while ((*(uint32_t *)(ibot + xref) >> 0x1a) % (1 << (0x1f - 0x1a + 1)) != 0x5) xref += 0x4;
+      while ((*(uint32_t *)(ibot + xref) >> 0x1a) % (1 << (0x5 + 1)) != 0x5) xref += 0x4;
       // B instructions (jumps into another subroutine and never come back | returns nothing)
     }
   }
@@ -181,6 +185,7 @@ uint64_t find_xref(uint64_t xref, char *str, char *name, int count, bool beg, ch
 
     insn = follow_call64(insn);
   }
+
   if (_print == 0) printf("[%s]: %s = 0x%llx\n", __func__, name, insn + base);
 
   _print = 0;
@@ -246,10 +251,10 @@ void *find_func(void) {
 
   insn_set(0x12, 0x18, pac_set(6723, 0x10, 0xD), 0x16);
   less = find_xref(0x0, pac_set(6723, "idle-off", "BootArgs"), "_security_init",        insn,                                        false, "bl");
-  find_xref(0x0,  "production-cert",            "_security_allow_modes",                pac_set(6723, 0x4, 0x2),                     false, "bl");
-  find_xref(use,  NULL,                         "_security_allow_memory",               0x3,                                         false, "bl");
-  find_xref(less, NULL,                         "_security_protect_memory",             hex_set(4513, 0x6, pac_set(6723, 0xE, 0x7)), false, "bl");
-  find_xref(less, NULL,                         "_security_clear_memory_in_chunks",     hex_set(5540, 0x5, pac_set(6723, 0xB, 0xA)), false, "bl");
+  find_xref(0x0,  "production-cert",           "_security_allow_modes",                 pac_set(6723, 0x4, 0x2),                     false, "bl");
+  find_xref(use,  NULL,                        "_security_allow_memory",                0x3,                                         false, "bl");
+  find_xref(less, NULL,                        "_security_protect_memory",              hex_set(4513, 0x6, pac_set(6723, 0xE, 0x7)), false, "bl");
+  find_xref(less, NULL,                        "_security_clear_memory_in_chunks",      hex_set(5540, 0x5, pac_set(6723, 0xB, 0xA)), false, "bl");
 
   find_xref(name, NULL,                        "_platform_bootprep",                    hex_set(5540, 0x3, 0x6), false, "bl");
   less = find_xref(0x0, "effective-security",  "_platform_get_nonce",                   hex_set(5540, 0x4, 0x5), false, "bl");
