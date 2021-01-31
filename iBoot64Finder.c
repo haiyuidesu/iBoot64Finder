@@ -200,6 +200,12 @@ int insn_set(uint32_t v12, uint32_t v13, uint32_t v14, uint32_t vX) {
   else return (insn = vX);
 }
 
+/*
+ *  You are about to read the most unreadable code that you have ever seen
+ *  I advise you to stop reading from here, but if you are strong enough then go ahead
+ *  Sorry if it drives you crazy, I almost fell too ;__;
+ */
+
 void *find_func(void) {
   uint64_t img4_load = 0;
 
@@ -300,15 +306,15 @@ void *find_func(void) {
   find_xref(0x0, "image %",                    "_image4_dump_list",                     0x0,                                         true,  NULL);
   find_xref(0x0, "mem",                        "_image_dump_list",                      0x3,                                         false, "bl");
 
-  if (version == 5540) {
+  if (version == 5540 && paced) {
     _print = 1; // I hate to have to do that kind of bad trick...
     img4_load = find_xref(use, NULL, "_useless_function", 0x2, false, "bl");
   }
 
-  insn_set(0x2, 0x1, pac_set(6723, 0x7, 0x3), 0x2);
-  img4_load = find_xref((version == 5540 ? img4_load : use), NULL, "_image_load", insn, false, (version == 5540 ? "b" : "bl"));
+  insn_set(0x2, pac_set(5540, 0x1, 0x2), pac_set(6723, 0x7, 0x3), 0x2);
+  img4_load = find_xref(((version == 5540 && paced) ? img4_load : use), NULL, "_image_load", insn, false, ((version == 5540 && paced) ? "b" : "bl"));
 
-  insn_set(0x8, 0x10, pac_set(6723, 0x16, 0xC), 0x8);
+  insn_set(0x8, pac_set(5540, 0x10, 0xC), pac_set(6723, 0x16, 0xC), 0x8);
   img4_load = find_xref(img4_load, NULL,       "_image4_load", hex_set(4076, 0xA, insn),                                  false, "bl");
 
   find_xref(use, NULL,                         "_image_free",                           0x3,                              false, "bl");
@@ -316,10 +322,10 @@ void *find_func(void) {
   use = find_xref(0x0, "image-version",        "_image_search_bdev",                    0x0,                              true,  NULL);
   name = find_xref(use, NULL,                  "_image_process_superblock", (version == 5540 ? 0x3 : 0x2),                false, "bl");
 
-  insn_set(0x16, 0x1f, pac_set(6723, 0x31, 0x1e), 0x12);
+  insn_set(0x16, pac_set(5540, 0x1f, 0x1e), pac_set(6723, 0x31, 0x1e), 0x12);
   use = find_xref(img4_load, NULL,             "_Img4DecodeInit",                       hex_set(4076, 0x15, insn),        false, "bl");
 
-  find_xref(img4_load, NULL,                   "_Img4DecodeGetPayload",                 insn_set(0x21, 0x21, 0x2a, 0x1f), false, "bl");
+  find_xref(img4_load, NULL,                   "_Img4DecodeGetPayload",                 insn_set(0x21, pac_set(5540, 0x21, 0x20), 0x2a, 0x1f), false, "bl");
   find_xref(img4_load, NULL,                   "_Img4DecodeManifestExists",             insn_set(0x18, 0x18, 0x21, 0x17), false, "bl");
   find_xref(use, NULL,                         "_DERImg4Decode",                        hex_set(5540, 0x2, 0x1),          false, "bl");
   find_xref(use, NULL,                         "_DERImg4DecodePayload",                 hex_set(5540, 0x3, 0x2),          false, "bl");
