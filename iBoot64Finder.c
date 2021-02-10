@@ -209,6 +209,7 @@ int insn_set(uint32_t v12, uint32_t v13, uint32_t v14, uint32_t vX) {
 void *find_func(void) {
   uint64_t img4_load = 0;
 
+  /* All and nothing */
   find_xref(0x0, hex_set(5540, "Attempting to", "darwinos-ramdisk"), "_do_bootx",       0x0,                     true,  NULL);
   find_xref(0x0, "debug-uarts",                "_main_task",                            0x0,                     true,  NULL);
   find_xref(0x0, "<ptr>",                      "_do_printf",                            0x0,                     true,  NULL);
@@ -222,6 +223,9 @@ void *find_func(void) {
   find_xref(0x0, "<ptr>",                      "_decode_ascii",                         pac_set(6723, 0x5, 0x1), false, "bl");
   uint64_t var = find_xref(0x0, "debug-uarts", "_env_get_uint",                         0x1,                     false, "bl");
   find_xref(0x0, "upgrade-retry",              "_env_get_bool",                         0x1,                     false, "bl");
+  uint64_t boot = find_xref(0x0, "debug-uarts", "_boot_check_panic",                    0x4,                     false, "bl");
+  find_xref(boot, NULL,                        "_boot_set_stage",                       hex_set(5540, 0x5, 0x4), false, "bl");
+  find_xref(0x0, "debug-uarts",                "_debug_enable_uarts",                   0x2,                     false, "bl");
   find_xref(0x0, "auto-boot",                  "_do_common_autoboot",                   0x0,                     true,  "bl");
   find_xref(0x0, "chosen/memory-map",          "_record_memory_range",                  0x0,                     true,  "bl");
   find_xref(0x0, "mem",                        "_create_mem_blockdev",                  0x1,                     false, "bl");
@@ -229,6 +233,8 @@ void *find_func(void) {
   find_xref(0x0, "boot-path",                  "_mount_and_boot_system",                0x0,                     true,  NULL);
   find_xref(0x0, "BootArgs",                   "_alloc_kernel_mem",                     0x5,                     false, "bl");
   find_xref(var, NULL,                         "_read_nvram_check",                     0x1,                     false, "bl");
+  find_xref(boot, NULL,                        "_power_get_nvram",                      0x1,                     false, "bl");
+  find_xref(boot, NULL,                        "_power_set_nvram",                      hex_set(5540, 0x4, 0x3), false, "bl");
 
   _print = 1; // for some reasons find_xref() did not worked properly here so here it will stay.
   uint64_t usb = find_xref(0x0, "Apple Mobile Device (Recovery Mode)", "_useless_function", 0x1, false, "bl");
@@ -283,6 +289,7 @@ void *find_func(void) {
   find_xref(var, NULL,                         "_platform_get_ecid_id",                 hex_set(5540, 0x6, 0x7), false, "bl");
   var = find_xref(var, NULL,                   "_platform_get_iboot_flags",             hex_set(5540, 0x7, 0x8), false, "bl");
   find_xref(var, NULL,                         "_platform_get_secure_mode",             0x2,                     false, "bl");
+  find_xref(boot, NULL,                        "_platform_init_mass_storage_panic",     hex_set(5540, 0x6, 0x5), false, "bl");
   find_xref(var, NULL,                         "_platform_get_current_production_mode", 0x3,                     false, "bl");
   var = find_xref(0x0, " SNON:",               "_platform_get_usb_more_other_string",   0x0,                     true,  NULL);
   find_xref(usb, NULL,                         "_platform_get_usb_vendor_id",           pac_set(6723, 0x5, 0x3), false, "bl");
@@ -292,6 +299,7 @@ void *find_func(void) {
   find_xref(usb, NULL,                         "_platform_get_usb_manufacturer_string", pac_set(6723, 0x8, 0x6), false, "bl");
   find_xref(usb, NULL,                         "_platform_get_usb_product_string",      pac_set(6723, 0xA, 0x8), false, "bl");
   find_xref(var, NULL,                         "_platform_get_sep_nonce",               0x6,                     false, "bl");
+  find_xref(boot, NULL,                        "_platform_system_reset",                0x9,                     false, "bl");
 
   find_xref(0x0, "Kernelcache too large",      "_load_kernelcache_object",              0x0,                     true,  NULL);
   less = find_xref(0x0, "/boot/kernelcache",   "_load_kernelcache_file",                0x1,                     false, "bl");
@@ -336,6 +344,7 @@ void *find_func(void) {
   find_xref(use, NULL,                         "_DERDecodeItemPartialBufferGetLength",  0x1,                              false, "bl");
   find_xref(use, NULL,                         "_DERParseSequenceContent",              0x2,                              false, "bl");
 
+  find_xref(boot, NULL,                        "_save_panic_log",                       hex_set(5540, 0x7, 0x6),          false, "bl");
   find_xref(var, NULL,                         "_hash_calculate",                       hex_set(5540, 0x2, 0x3),          false, "bl");
   find_xref(last, NULL,                        "_fs_load_file",                         0x1,                              false, "bl");
 
